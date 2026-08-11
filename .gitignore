@@ -1,0 +1,47 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+
+# Environment files
+server/.env
+.env
+
+# Node modules
+server/node_modules/
+node_modules/
+
+# IDE files
+*.iml
+*.ipr
+*.iws
+.idea/
+.vscode/
+
+# Flutter / Dart
+**/doc/api/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+/build/
+
+# Android
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
+**/android/captures
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+
+# Web
+**/web/build/
