@@ -7,19 +7,47 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/loading_indicator.dart';
 import '../../providers/telegram_provider.dart';
 import 'telegram_chat_screen.dart';
+import 'link_telegram_modal.dart';
 
-class TelegramInboxScreen extends ConsumerWidget {
+class TelegramInboxScreen extends ConsumerStatefulWidget {
   const TelegramInboxScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TelegramInboxScreen> createState() => _TelegramInboxScreenState();
+}
+
+class _TelegramInboxScreenState extends ConsumerState<TelegramInboxScreen> {
+  final _searchController = TextEditingController();
+
+  final List<String> _filters = [
+    'ALL',
+    'UNREAD',
+    'ASSIGNED TO ME',
+    'HOT LEADS',
+    'CUSTOMERS',
+    'WAITING FOR REPLY',
+    'FOLLOW-UP',
+    'UNMATCHED',
+    'ARCHIVED',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
     final telegramState = ref.watch(telegramProvider);
     final telegramNotifier = ref.read(telegramProvider.notifier);
+
+    final filteredList = telegramState.conversations.where((conv) {
+      if (_searchController.text.trim().isEmpty) return true;
+      final q = _searchController.text.toLowerCase().trim();
+      return conv.contactName.toLowerCase().contains(q) ||
+          (conv.telegramUsername != null && conv.telegramUsername!.toLowerCase().contains(q)) ||
+          conv.telegramChatId.contains(q);
+    }).toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Telegram Inbox', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        title: Text('Telegram CRM Inbox', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -29,36 +57,66 @@ class TelegramInboxScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
-          // Filter Chips
+          // Search & Filter
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Search prospect name, @username, chat ID...',
+                prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: AppColors.textMuted),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+              ),
+            ),
+          ),
+
+          // 9 Filter Chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Row(
-              children: [
-                _filterChip('ALL', telegramState.currentFilter == 'ALL', () => telegramNotifier.setFilter('ALL')),
-                _filterChip('UNREAD', telegramState.currentFilter == 'UNREAD', () => telegramNotifier.setFilter('UNREAD')),
-                _filterChip('UNMATCHED', telegramState.currentFilter == 'UNMATCHED', () => telegramNotifier.setFilter('UNMATCHED')),
-                _filterChip('HOT LEADS', telegramState.currentFilter == 'HOT_LEADS', () => telegramNotifier.setFilter('HOT_LEADS')),
-              ],
+              children: _filters.map((f) {
+                final isSel = telegramState.currentFilter == f;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6.0),
+                  child: ChoiceChip(
+                    label: Text(f, style: TextStyle(fontSize: 11, color: isSel ? Colors.white : AppColors.textSecondary, fontWeight: FontWeight.bold)),
+                    selected: isSel,
+                    selectedColor: AppColors.primary,
+                    backgroundColor: AppColors.surface,
+                    onSelected: (_) => telegramNotifier.setFilter(f),
+                  ),
+                );
+              }).toList(),
             ),
           ),
 
           Expanded(
             child: telegramState.isLoading
-                ? const LoadingIndicator(message: 'Syncing Telegram Conversations...')
-                : telegramState.conversations.isEmpty
+                ? const LoadingIndicator(message: 'Syncing Telegram Inbox...')
+                : filteredList.isEmpty
                     ? const EmptyStateWidget(
-                        message: 'No Telegram conversations yet.',
-                        subtitle: 'Incoming prospect messages via EducateSetu Telegram Bot will appear here in real-time.',
+                        message: 'No Telegram conversations found.',
+                        subtitle: 'Incoming prospect messages via EducateSetu Bot will appear here in real-time.',
                         icon: Icons.send_outlined,
                       )
                     : RefreshIndicator(
                         onRefresh: () async => telegramNotifier.loadConversations(),
                         child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: telegramState.conversations.length,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: filteredList.length,
                           itemBuilder: (context, index) {
-                            final conv = telegramState.conversations[index];
+                            final conv = filteredList[index];
                             return Card(
                               margin: const EdgeInsets.only(bottom: 10),
                               child: ListTile(
@@ -70,7 +128,7 @@ class TelegramInboxScreen extends ConsumerWidget {
                                       builder: (context) => TelegramChatScreen(
                                         conversationId: conv.id,
                                         telegramChatId: conv.telegramChatId,
-                                        contactName: conv.contactName ?? conv.telegramUsername ?? 'Prospect',
+                                        contactName: conv.contactName,
                                         leadId: conv.leadId,
                                       ),
                                     ),
@@ -80,16 +138,53 @@ class TelegramInboxScreen extends ConsumerWidget {
                                   backgroundColor: conv.isMatched ? AppColors.primary : AppColors.warning,
                                   child: Icon(conv.isMatched ? Icons.school : Icons.person_outline, color: Colors.white, size: 20),
                                 ),
-                                title: Text(
-                                  conv.contactName ?? conv.telegramUsername ?? 'Unknown Telegram Contact',
-                                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                title: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        conv.contactName,
+                                        style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                      ),
+                                    ),
+                                    if (conv.priority == 'HIGH' || conv.priority == 'URGENT')
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(color: AppColors.warning, borderRadius: BorderRadius.circular(4)),
+                                        child: Text(conv.priority ?? 'HIGH', style: const TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.bold)),
+                                      )
+                                  ],
                                 ),
-                                subtitle: Text(
-                                  conv.isMatched ? 'Linked to Lead record' : '⚠️ Unmatched Telegram Chat',
-                                  style: TextStyle(
-                                    color: conv.isMatched ? AppColors.textSecondary : AppColors.warning,
-                                    fontSize: 12,
-                                  ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      conv.isMatched ? 'Linked Lead Record' : '⚠️ Unmatched Telegram Chat',
+                                      style: TextStyle(
+                                        color: conv.isMatched ? AppColors.textSecondary : AppColors.warning,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    if (!conv.isMatched) ...[
+                                      const SizedBox(height: 4),
+                                      InkWell(
+                                        onTap: () {
+                                          showModalBottomSheet(
+                                            context: context,
+                                            isScrollControlled: true,
+                                            backgroundColor: AppColors.surface,
+                                            builder: (context) => LinkTelegramModal(
+                                              conversationId: conv.id,
+                                              telegramChatId: conv.telegramChatId,
+                                              telegramUsername: conv.telegramUsername,
+                                              contactName: conv.contactName,
+                                            ),
+                                          );
+                                        },
+                                        child: const Text('🔗 LINK TO LEAD / CUSTOMER', style: TextStyle(color: AppColors.secondary, fontSize: 11, fontWeight: FontWeight.bold)),
+                                      )
+                                    ]
+                                  ],
                                 ),
                                 trailing: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -113,20 +208,6 @@ class TelegramInboxScreen extends ConsumerWidget {
                       ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _filterChip(String label, bool isSelected, VoidCallback onTap) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8.0),
-      child: ChoiceChip(
-        label: Text(label),
-        selected: isSelected,
-        onSelected: (_) => onTap(),
-        selectedColor: AppColors.primary,
-        backgroundColor: AppColors.surface,
-        labelStyle: TextStyle(color: isSelected ? Colors.white : AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.bold),
       ),
     );
   }

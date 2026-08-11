@@ -4,8 +4,32 @@ import '../constants/api_constants.dart';
 
 class ApiService {
   static String get baseUrl {
-    // Falls back gracefully between emulator loopback and localhost
     return ApiConstants.backendApiUrlLocal;
+  }
+
+  // Generic GET
+  static Future<Map<String, dynamic>> get(String endpoint) async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl$endpoint'));
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (_) {}
+    return {'success': false, 'error': 'Network error'};
+  }
+
+  // Generic POST
+  static Future<Map<String, dynamic>> post(String endpoint, Map<String, dynamic> body) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+      return jsonDecode(response.body);
+    } catch (err) {
+      return {'success': false, 'error': err.toString()};
+    }
   }
 
   // Health Check
@@ -28,6 +52,13 @@ class ApiService {
     };
   }
 
+  static Future<Map<String, dynamic>> getHealthStatus() => checkHealth();
+
+  // Telegram Command Center Stats
+  static Future<Map<String, dynamic>> getTelegramCommandCenterStats() async {
+    return get('/api/telegram/command-center');
+  }
+
   // Send Telegram message over backend proxy
   static Future<Map<String, dynamic>> sendTelegramMessage({
     String? conversationId,
@@ -36,18 +67,13 @@ class ApiService {
     required String content,
     String? agentId,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl${ApiConstants.telegramSendEndpoint}'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'conversationId': conversationId,
-        'telegramChatId': telegramChatId,
-        'leadId': leadId,
-        'content': content,
-        'agentId': agentId,
-      }),
-    );
-    return jsonDecode(response.body);
+    return post(ApiConstants.telegramSendEndpoint, {
+      'conversationId': conversationId,
+      'telegramChatId': telegramChatId,
+      'leadId': leadId,
+      'content': content,
+      'agentId': agentId,
+    });
   }
 
   // Duplicate Check
@@ -57,17 +83,12 @@ class ApiService {
     String? email,
     String? website,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl${ApiConstants.duplicateCheckEndpoint}'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'schoolName': schoolName,
-        'phone': phone,
-        'email': email,
-        'website': website,
-      }),
-    );
-    return jsonDecode(response.body);
+    return post(ApiConstants.duplicateCheckEndpoint, {
+      'schoolName': schoolName,
+      'phone': phone,
+      'email': email,
+      'website': website,
+    });
   }
 
   // Lead Conversion Transaction
@@ -81,21 +102,16 @@ class ApiService {
     String? userId,
     bool bypassDuplicateCheck = false,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl${ApiConstants.convertLeadEndpoint}'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'leadId': leadId,
-        'annualRevenue': annualRevenue,
-        'monthlyRevenue': monthlyRevenue,
-        'oneTimeRevenue': oneTimeRevenue,
-        'planId': planId,
-        'targetGoLiveDate': targetGoLiveDate,
-        'userId': userId,
-        'bypassDuplicateCheck': bypassDuplicateCheck,
-      }),
-    );
-    return jsonDecode(response.body);
+    return post(ApiConstants.convertLeadEndpoint, {
+      'leadId': leadId,
+      'annualRevenue': annualRevenue,
+      'monthlyRevenue': monthlyRevenue,
+      'oneTimeRevenue': oneTimeRevenue,
+      'planId': planId,
+      'targetGoLiveDate': targetGoLiveDate,
+      'userId': userId,
+      'bypassDuplicateCheck': bypassDuplicateCheck,
+    });
   }
 
   // AI Sales Copilot
@@ -103,14 +119,9 @@ class ApiService {
     required String prompt,
     String? leadId,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl${ApiConstants.copilotEndpoint}'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'prompt': prompt,
-        'leadId': leadId,
-      }),
-    );
-    return jsonDecode(response.body);
+    return post(ApiConstants.copilotEndpoint, {
+      'prompt': prompt,
+      'leadId': leadId,
+    });
   }
 }

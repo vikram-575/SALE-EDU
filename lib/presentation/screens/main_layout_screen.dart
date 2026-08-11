@@ -4,7 +4,7 @@ import '../../core/constants/app_colors.dart';
 import 'dashboard/sales_dashboard_screen.dart';
 import 'leads/lead_list_screen.dart';
 import 'pipeline/pipeline_kanban_screen.dart';
-import 'telegram/telegram_inbox_screen.dart';
+import 'telegram/telegram_command_center_screen.dart';
 import 'notes/sales_notes_screen.dart';
 import 'tasks/task_list_screen.dart';
 import 'copilot/ai_copilot_sheet.dart';
@@ -25,7 +25,7 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
     const SalesDashboardScreen(),
     const LeadListScreen(),
     const PipelineKanbanScreen(),
-    const TelegramInboxScreen(),
+    const TelegramCommandCenterScreen(),
     const SalesNotesScreen(),
   ];
 
@@ -108,6 +108,14 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
                   Text('Revenue Operating System 2.0', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                 ],
               ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.send_outlined, color: AppColors.secondary),
+              title: const Text('Telegram Command Center', style: TextStyle(color: AppColors.textPrimary)),
+              onTap: () {
+                Navigator.pop(context);
+                setState(() => _currentIndex = 3);
+              },
             ),
             ListTile(
               leading: const Icon(Icons.note_alt_outlined, color: AppColors.primary),

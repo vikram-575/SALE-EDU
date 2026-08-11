@@ -7,6 +7,7 @@ import '../../../core/widgets/loading_indicator.dart';
 import '../../../data/models/telegram_message_model.dart';
 import '../../providers/telegram_provider.dart';
 import '../../providers/copilot_provider.dart';
+import 'telegram_profile_sheet.dart';
 
 class TelegramChatScreen extends ConsumerStatefulWidget {
   final String conversationId;
@@ -47,7 +48,7 @@ class _TelegramChatScreenState extends ConsumerState<TelegramChatScreen> {
     }
   }
 
-  void _generateAiReply() async {
+  void _runAiAction(String action) async {
     final telegramState = ref.read(telegramProvider);
     TelegramMessageModel? lastProspectMsg;
 
@@ -107,22 +108,46 @@ class _TelegramChatScreenState extends ConsumerState<TelegramChatScreen> {
   @override
   Widget build(BuildContext context) {
     final telegramState = ref.watch(telegramProvider);
+    final conv = telegramState.conversations.firstWhere(
+      (c) => c.id == widget.conversationId,
+      orElse: () => TelegramConversationModel(
+        id: widget.conversationId,
+        telegramChatId: widget.telegramChatId,
+        contactName: widget.contactName,
+        lastMessageAt: DateTime.now(),
+      ),
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.contactName, style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-            Text('Telegram Chat ID: ${widget.telegramChatId}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-          ],
+        title: InkWell(
+          onTap: () {
+            showModalBottomSheet(
+              context: context,
+              backgroundColor: AppColors.surface,
+              builder: (context) => TelegramProfileSheet(conversation: conv),
+            );
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.contactName, style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+              Text('Chat ID: ${widget.telegramChatId} • Tap for Profile', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            ],
+          ),
         ),
         actions: [
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.auto_awesome, color: AppColors.secondary),
-            tooltip: 'Gemini AI Auto-Draft Reply',
-            onPressed: _isDraftingAI ? null : _generateAiReply,
+            tooltip: 'Gemini AI Assistant',
+            onSelected: (val) => _runAiAction(val),
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'DRAFT_REPLY', child: Text('✨ Draft Reply')),
+              PopupMenuItem(value: 'SUMMARIZE', child: Text('✨ Summarize Conversation')),
+              PopupMenuItem(value: 'IDENTIFY_INTENT', child: Text('✨ Classify Intent & Objections')),
+              PopupMenuItem(value: 'TRANSLATE', child: Text('✨ Translate to Hindi')),
+            ],
           ),
           IconButton(
             icon: const Icon(Icons.bolt, color: AppColors.primary),
@@ -141,7 +166,7 @@ class _TelegramChatScreenState extends ConsumerState<TelegramChatScreen> {
                 children: [
                   const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.secondary)),
                   const SizedBox(width: 10),
-                  Text('Gemini AI is drafting personalized Telegram response...', style: GoogleFonts.inter(fontSize: 12, color: AppColors.secondary, fontWeight: FontWeight.bold)),
+                  Text('Gemini AI is analyzing conversation & drafting reply...', style: GoogleFonts.inter(fontSize: 12, color: AppColors.secondary, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -186,6 +211,14 @@ class _TelegramChatScreenState extends ConsumerState<TelegramChatScreen> {
                                         DateFormatter.formatTime(msg.sentAt),
                                         style: TextStyle(color: isMe ? Colors.white70 : AppColors.textMuted, fontSize: 10),
                                       ),
+                                      if (isMe) ...[
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          msg.deliveryStatus == 'DELIVERED' ? Icons.done_all : Icons.done,
+                                          size: 12,
+                                          color: Colors.white70,
+                                        )
+                                      ]
                                     ],
                                   )
                                 ],
