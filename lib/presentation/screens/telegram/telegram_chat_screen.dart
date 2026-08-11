@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/widgets/loading_indicator.dart';
+import '../../../data/models/telegram_message_model.dart';
 import '../../providers/telegram_provider.dart';
 import '../../providers/copilot_provider.dart';
 
@@ -48,10 +49,15 @@ class _TelegramChatScreenState extends ConsumerState<TelegramChatScreen> {
 
   void _generateAiReply() async {
     final telegramState = ref.read(telegramProvider);
-    final lastProspectMsg = telegramState.messages.lastWhere(
-      (m) => m.senderType == 'PROSPECT',
-      orElse: () => telegramState.messages.isNotEmpty ? telegramState.messages.last : dynamic,
-    );
+    TelegramMessageModel? lastProspectMsg;
+
+    for (final m in telegramState.messages.reversed) {
+      if (m.senderType == 'PROSPECT') {
+        lastProspectMsg = m;
+        break;
+      }
+    }
+    lastProspectMsg ??= telegramState.messages.isNotEmpty ? telegramState.messages.last : null;
 
     final promptText = lastProspectMsg != null
         ? 'Draft a polite, highly persuasive sales reply on Telegram to prospect "${widget.contactName}" who said: "${lastProspectMsg.content}". Offer a 10-minute online demo of EducateSetu School ERP.'

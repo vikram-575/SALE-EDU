@@ -58,13 +58,13 @@ class _SalesNotesScreenState extends ConsumerState<SalesNotesScreen> {
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) {
+        builder: (dialogContext, setModalState) {
           return Padding(
             padding: EdgeInsets.only(
               left: 20,
               right: 20,
               top: 20,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+              bottom: MediaQuery.of(dialogContext).viewInsets.bottom + 20,
             ),
             child: SingleChildScrollView(
               child: Column(
@@ -161,7 +161,8 @@ class _SalesNotesScreenState extends ConsumerState<SalesNotesScreen> {
                           tags: selectedTags,
                           isPinned: isPinned,
                         );
-                        Navigator.pop(context);
+                        if (!dialogContext.mounted) return;
+                        Navigator.pop(dialogContext);
                         _loadNotes();
                       },
                       style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
