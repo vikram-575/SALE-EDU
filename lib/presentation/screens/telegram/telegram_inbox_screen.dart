@@ -39,7 +39,8 @@ class _TelegramInboxScreenState extends ConsumerState<TelegramInboxScreen> {
     final filteredList = telegramState.conversations.where((conv) {
       if (_searchController.text.trim().isEmpty) return true;
       final q = _searchController.text.toLowerCase().trim();
-      return conv.contactName.toLowerCase().contains(q) ||
+      final name = conv.displayContactName.toLowerCase();
+      return name.contains(q) ||
           (conv.telegramUsername != null && conv.telegramUsername!.toLowerCase().contains(q)) ||
           conv.telegramChatId.contains(q);
     }).toList();
@@ -117,6 +118,8 @@ class _TelegramInboxScreenState extends ConsumerState<TelegramInboxScreen> {
                           itemCount: filteredList.length,
                           itemBuilder: (context, index) {
                             final conv = filteredList[index];
+                            final displayName = conv.displayContactName;
+
                             return Card(
                               margin: const EdgeInsets.only(bottom: 10),
                               child: ListTile(
@@ -128,7 +131,7 @@ class _TelegramInboxScreenState extends ConsumerState<TelegramInboxScreen> {
                                       builder: (context) => TelegramChatScreen(
                                         conversationId: conv.id,
                                         telegramChatId: conv.telegramChatId,
-                                        contactName: conv.contactName,
+                                        contactName: displayName,
                                         leadId: conv.leadId,
                                       ),
                                     ),
@@ -142,7 +145,7 @@ class _TelegramInboxScreenState extends ConsumerState<TelegramInboxScreen> {
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        conv.contactName,
+                                        displayName,
                                         style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                                       ),
                                     ),
@@ -177,7 +180,7 @@ class _TelegramInboxScreenState extends ConsumerState<TelegramInboxScreen> {
                                               conversationId: conv.id,
                                               telegramChatId: conv.telegramChatId,
                                               telegramUsername: conv.telegramUsername,
-                                              contactName: conv.contactName,
+                                              contactName: displayName,
                                             ),
                                           );
                                         },

@@ -112,7 +112,7 @@ class _TelegramHealthScreenState extends State<TelegramHealthScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: _e2eResult!['success'] == true ? AppColors.success : AppColors.error,
+                                  color: _e2eResult!['success'] == true ? AppColors.success : AppColors.danger,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(

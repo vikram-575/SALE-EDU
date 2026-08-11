@@ -10,6 +10,8 @@ class TelegramProfileSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final name = conversation.displayContactName;
+
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Column(
@@ -22,7 +24,7 @@ class TelegramProfileSheet extends StatelessWidget {
                 radius: 24,
                 backgroundColor: AppColors.primary,
                 child: Text(
-                  conversation.contactName.isNotEmpty ? conversation.contactName[0].toUpperCase() : 'T',
+                  name.isNotEmpty ? name[0].toUpperCase() : 'T',
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
                 ),
               ),
@@ -31,7 +33,7 @@ class TelegramProfileSheet extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(conversation.contactName, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                    Text(name, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                     if (conversation.telegramUsername != null)
                       Text('@${conversation.telegramUsername}', style: const TextStyle(color: AppColors.secondary, fontSize: 13)),
                   ],

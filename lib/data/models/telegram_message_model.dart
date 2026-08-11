@@ -11,6 +11,10 @@ class TelegramConversationModel {
   final DateTime lastMessageAt;
   final String? assignedAgentId;
   final bool isMatched;
+  final String? priority;
+  final String? intentCategory;
+  final bool doNotContact;
+  final String? aiSummary;
 
   TelegramConversationModel({
     required this.id,
@@ -25,7 +29,13 @@ class TelegramConversationModel {
     required this.lastMessageAt,
     this.assignedAgentId,
     this.isMatched = false,
+    this.priority,
+    this.intentCategory,
+    this.doNotContact = false,
+    this.aiSummary,
   });
+
+  String get displayContactName => contactName ?? (telegramUsername != null ? '@$telegramUsername' : 'Telegram Contact');
 
   factory TelegramConversationModel.fromJson(Map<String, dynamic> json) {
     return TelegramConversationModel(
@@ -41,6 +51,10 @@ class TelegramConversationModel {
       lastMessageAt: DateTime.parse(json['lastMessageAt'] ?? DateTime.now().toIso8601String()),
       assignedAgentId: json['assignedAgentId'],
       isMatched: json['isMatched'] ?? false,
+      priority: json['priority'] ?? 'NORMAL',
+      intentCategory: json['intentCategory'] ?? 'UNKNOWN',
+      doNotContact: json['doNotContact'] ?? false,
+      aiSummary: json['aiSummary'],
     );
   }
 }

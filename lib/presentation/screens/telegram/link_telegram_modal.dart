@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/network/api_service.dart';
-import '../../../data/models/lead_model.dart';
 import '../../providers/lead_provider.dart';
 
 class LinkTelegramModal extends ConsumerStatefulWidget {
@@ -94,11 +93,11 @@ class _LinkTelegramModalState extends ConsumerState<LinkTelegramModal> {
             Text('Telegram Chat ID: ${widget.telegramChatId} (${widget.telegramUsername != null ? '@${widget.telegramUsername}' : 'No username'})', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
             const SizedBox(height: 16),
 
-            // Option A: Link to Existing Lead
+            // Option 1: Link to Existing Lead
             Text('OPTION 1: LINK TO EXISTING LEAD', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textMuted)),
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
-              value: _selectedLeadId,
+              initialValue: _selectedLeadId,
               decoration: const InputDecoration(hintText: 'Select existing lead...'),
               dropdownColor: AppColors.surface,
               style: const TextStyle(color: AppColors.textPrimary),
@@ -117,7 +116,7 @@ class _LinkTelegramModalState extends ConsumerState<LinkTelegramModal> {
             ),
             const SizedBox(height: 20),
 
-            // Option B: Create New Lead
+            // Option 2: Create New Lead
             Text('OPTION 2: CREATE NEW LEAD FROM TELEGRAM', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textMuted)),
             const SizedBox(height: 6),
             TextField(
@@ -143,7 +142,7 @@ class _LinkTelegramModalState extends ConsumerState<LinkTelegramModal> {
             ),
             const SizedBox(height: 16),
 
-            // Option C: Ignore / Block
+            // Option 3: Ignore / Block
             Row(
               children: [
                 Expanded(
@@ -156,7 +155,7 @@ class _LinkTelegramModalState extends ConsumerState<LinkTelegramModal> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: _isSubmitting ? null : () => _submitAction('BLOCK'),
-                    style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error)),
+                    style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger, side: const BorderSide(color: AppColors.danger)),
                     child: const Text('BLOCK'),
                   ),
                 ),
