@@ -9,6 +9,7 @@ import '../../../core/widgets/status_badge.dart';
 import '../../providers/lead_provider.dart';
 import 'lead_detail_screen.dart';
 import 'create_edit_lead_screen.dart';
+import 'geo_filter_sheet.dart';
 
 class LeadListScreen extends ConsumerStatefulWidget {
   const LeadListScreen({super.key});
@@ -20,16 +21,32 @@ class LeadListScreen extends ConsumerStatefulWidget {
 class _LeadListScreenState extends ConsumerState<LeadListScreen> {
   final _searchController = TextEditingController();
 
+  void _openGeoFilter() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const GeoFilterSheet(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final leadState = ref.watch(leadProvider);
     final leadNotifier = ref.read(leadProvider.notifier);
+
+    final hasActiveGeoFilter = leadState.selectedCity != null || leadState.selectedDistrict != null || leadState.selectedPincode != null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text('Leads Directory', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
         actions: [
+          IconButton(
+            icon: Icon(Icons.location_on_outlined, color: hasActiveGeoFilter ? AppColors.secondary : AppColors.textPrimary),
+            tooltip: 'Filter City, District & Pincode',
+            onPressed: _openGeoFilter,
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () {
@@ -40,6 +57,33 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
       ),
       body: Column(
         children: [
+          // Active Geo Filter Banner
+          if (hasActiveGeoFilter)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: AppColors.primary.withValues(alpha: 0.15),
+              child: Row(
+                children: [
+                  const Icon(Icons.pin_drop, size: 16, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Filtered: ${[
+                        if (leadState.selectedCity != null) 'City: ${leadState.selectedCity}',
+                        if (leadState.selectedDistrict != null) 'Dist: ${leadState.selectedDistrict}',
+                        if (leadState.selectedPincode != null) 'Pin: ${leadState.selectedPincode}'
+                      ].join(" • ")}',
+                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => leadNotifier.clearGeoFilters(),
+                    child: const Icon(Icons.close, size: 16, color: AppColors.primary),
+                  )
+                ],
+              ),
+            ),
+
           // Search & Filter Bar
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -50,7 +94,7 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
                   onChanged: (value) => leadNotifier.setSearchQuery(value),
                   style: const TextStyle(color: AppColors.textPrimary),
                   decoration: InputDecoration(
-                    hintText: 'Search by School, Contact, Phone, Telegram, City...',
+                    hintText: 'Search by School, Contact, Phone, City, District, Pincode...',
                     prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
@@ -88,8 +132,8 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
                 ? const LoadingIndicator(message: 'Querying leads...')
                 : leadState.leads.isEmpty
                     ? const EmptyStateWidget(
-                        message: 'No leads yet.',
-                        subtitle: 'Tap + above to add your first sales lead for EducateSetu.',
+                        message: 'No leads found.',
+                        subtitle: 'No matching leads found for the selected city, district, or pincode filters.',
                         icon: Icons.person_search_outlined,
                       )
                     : RefreshIndicator(
@@ -134,10 +178,18 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
                                           const Icon(Icons.person_outline, size: 14, color: AppColors.textMuted),
                                           const SizedBox(width: 4),
                                           Text(lead.contactPerson, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                                          if (lead.city != null && lead.city!.isNotEmpty) ...[
-                                            const Text(' • ', style: TextStyle(color: AppColors.textMuted)),
-                                            Text(lead.city!, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                                          ]
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      // Geo Location Pills (City, District, Pincode)
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.place_outlined, size: 14, color: AppColors.secondary),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${lead.city ?? 'N/A'}${lead.district != null && lead.district!.isNotEmpty ? ', Dist: ${lead.district}' : ''}${lead.pincode != null && lead.pincode!.isNotEmpty ? ' (${lead.pincode})' : ''}',
+                                            style: const TextStyle(color: AppColors.textMuted, fontSize: 12, fontWeight: FontWeight.w500),
+                                          ),
                                         ],
                                       ),
                                       const Divider(height: 20, color: AppColors.border),

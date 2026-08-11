@@ -9,6 +9,8 @@ class LeadModel {
   final String? telegramChatId;
   final String? website;
   final String? city;
+  final String? district;
+  final String? pincode;
   final String? state;
   final String? country;
   final String? schoolType;
@@ -50,6 +52,8 @@ class LeadModel {
     this.telegramChatId,
     this.website,
     this.city,
+    this.district,
+    this.pincode,
     this.state,
     this.country,
     this.schoolType,
@@ -93,6 +97,8 @@ class LeadModel {
       telegramChatId: json['telegramChatId'],
       website: json['website'],
       city: json['city'],
+      district: json['district'],
+      pincode: json['pincode'],
       state: json['state'],
       country: json['country'] ?? 'India',
       schoolType: json['schoolType'],
@@ -137,6 +143,8 @@ class LeadModel {
       'telegramChatId': telegramChatId,
       'website': website,
       'city': city,
+      'district': district,
+      'pincode': pincode,
       'state': state,
       'country': country,
       'schoolType': schoolType,

@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/widgets/loading_indicator.dart';
 import '../../providers/telegram_provider.dart';
+import '../../providers/copilot_provider.dart';
 
 class TelegramChatScreen extends ConsumerStatefulWidget {
   final String conversationId;
@@ -26,6 +27,7 @@ class TelegramChatScreen extends ConsumerStatefulWidget {
 
 class _TelegramChatScreenState extends ConsumerState<TelegramChatScreen> {
   final _messageController = TextEditingController();
+  bool _isDraftingAI = false;
 
   void _send() async {
     final text = _messageController.text.trim();
@@ -41,6 +43,31 @@ class _TelegramChatScreenState extends ConsumerState<TelegramChatScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to dispatch Telegram message. Check backend API.')),
       );
+    }
+  }
+
+  void _generateAiReply() async {
+    final telegramState = ref.read(telegramProvider);
+    final lastProspectMsg = telegramState.messages.lastWhere(
+      (m) => m.senderType == 'PROSPECT',
+      orElse: () => telegramState.messages.isNotEmpty ? telegramState.messages.last : dynamic,
+    );
+
+    final promptText = lastProspectMsg != null
+        ? 'Draft a polite, highly persuasive sales reply on Telegram to prospect "${widget.contactName}" who said: "${lastProspectMsg.content}". Offer a 10-minute online demo of EducateSetu School ERP.'
+        : 'Draft a welcoming initial Telegram message to school principal "${widget.contactName}" introducing EducateSetu ERP for fee collection and AI report cards.';
+
+    setState(() => _isDraftingAI = true);
+    await ref.read(copilotProvider.notifier).askCopilot(promptText);
+    final copilotReply = ref.read(copilotProvider).reply;
+
+    if (mounted) {
+      setState(() {
+        _isDraftingAI = false;
+        if (copilotReply != null && copilotReply.isNotEmpty) {
+          _messageController.text = copilotReply;
+        }
+      });
     }
   }
 
@@ -87,7 +114,12 @@ class _TelegramChatScreenState extends ConsumerState<TelegramChatScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.bolt, color: AppColors.secondary),
+            icon: const Icon(Icons.auto_awesome, color: AppColors.secondary),
+            tooltip: 'Gemini AI Auto-Draft Reply',
+            onPressed: _isDraftingAI ? null : _generateAiReply,
+          ),
+          IconButton(
+            icon: const Icon(Icons.bolt, color: AppColors.primary),
             tooltip: 'Quick Templates',
             onPressed: _showTemplatePicker,
           )
@@ -95,6 +127,18 @@ class _TelegramChatScreenState extends ConsumerState<TelegramChatScreen> {
       ),
       body: Column(
         children: [
+          if (_isDraftingAI)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+              color: AppColors.secondary.withValues(alpha: 0.15),
+              child: Row(
+                children: [
+                  const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.secondary)),
+                  const SizedBox(width: 10),
+                  Text('Gemini AI is drafting personalized Telegram response...', style: GoogleFonts.inter(fontSize: 12, color: AppColors.secondary, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
           Expanded(
             child: telegramState.isLoading
                 ? const LoadingIndicator()
@@ -159,6 +203,8 @@ class _TelegramChatScreenState extends ConsumerState<TelegramChatScreen> {
                 Expanded(
                   child: TextField(
                     controller: _messageController,
+                    maxLines: 3,
+                    minLines: 1,
                     style: const TextStyle(color: AppColors.textPrimary),
                     decoration: const InputDecoration(
                       hintText: 'Type Telegram message...',

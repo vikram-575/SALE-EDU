@@ -15,11 +15,14 @@ class LeadRepository {
     return '${digest.substring(0, 8)}-${digest.substring(8, 12)}-4${digest.substring(13, 16)}-8${digest.substring(17, 20)}-${digest.substring(20, 32)}';
   }
 
-  // Fetch all live leads
+  // Fetch all live leads with Geo-filtering (City, District, Pincode)
   Future<List<LeadModel>> getLeads({
     String? stage,
     String? source,
     String? priority,
+    String? cityFilter,
+    String? districtFilter,
+    String? pincodeFilter,
     String? searchQuery,
   }) async {
     dynamic query = _client.from('Lead').select('*').eq('isArchived', false);
@@ -32,6 +35,15 @@ class LeadRepository {
     }
     if (priority != null && priority != 'ALL') {
       query = query.eq('priority', priority);
+    }
+    if (cityFilter != null && cityFilter.isNotEmpty && cityFilter != 'ALL') {
+      query = query.ilike('city', '%$cityFilter%');
+    }
+    if (districtFilter != null && districtFilter.isNotEmpty && districtFilter != 'ALL') {
+      query = query.ilike('district', '%$districtFilter%');
+    }
+    if (pincodeFilter != null && pincodeFilter.isNotEmpty && pincodeFilter != 'ALL') {
+      query = query.eq('pincode', pincodeFilter.trim());
     }
 
     query = query.order('createdAt', ascending: false);
@@ -47,6 +59,8 @@ class LeadRepository {
         (l.phone != null && l.phone!.contains(q)) ||
         (l.email != null && l.email!.toLowerCase().contains(q)) ||
         (l.city != null && l.city!.toLowerCase().contains(q)) ||
+        (l.district != null && l.district!.toLowerCase().contains(q)) ||
+        (l.pincode != null && l.pincode!.contains(q)) ||
         l.id.contains(q)
       ).toList();
     }
@@ -102,14 +116,12 @@ class LeadRepository {
   }) async {
     final now = DateTime.now().toIso8601String();
 
-    // 1. Update Lead stage
     await _client.from('Lead').update({
       'stage': newStage,
       'updatedAt': now,
       if (newStage == 'LOST') 'lostReason': reason,
     }).eq('id', leadId);
 
-    // 2. Insert Stage History
     await _client.from('LeadStageHistory').insert({
       'id': _generateUuid(),
       'leadId': leadId,
@@ -120,7 +132,6 @@ class LeadRepository {
       'createdAt': now,
     });
 
-    // 3. Log Lead Activity
     await _client.from('LeadActivity').insert({
       'id': _generateUuid(),
       'leadId': leadId,

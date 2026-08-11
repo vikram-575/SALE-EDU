@@ -12,6 +12,9 @@ class LeadState {
   final String selectedStageFilter;
   final String selectedSourceFilter;
   final String selectedPriorityFilter;
+  final String? selectedCity;
+  final String? selectedDistrict;
+  final String? selectedPincode;
   final String searchQuery;
   final String? error;
 
@@ -21,6 +24,9 @@ class LeadState {
     this.selectedStageFilter = 'ALL',
     this.selectedSourceFilter = 'ALL',
     this.selectedPriorityFilter = 'ALL',
+    this.selectedCity,
+    this.selectedDistrict,
+    this.selectedPincode,
     this.searchQuery = '',
     this.error,
   });
@@ -31,6 +37,9 @@ class LeadState {
     String? selectedStageFilter,
     String? selectedSourceFilter,
     String? selectedPriorityFilter,
+    String? selectedCity,
+    String? selectedDistrict,
+    String? selectedPincode,
     String? searchQuery,
     String? error,
   }) {
@@ -40,6 +49,9 @@ class LeadState {
       selectedStageFilter: selectedStageFilter ?? this.selectedStageFilter,
       selectedSourceFilter: selectedSourceFilter ?? this.selectedSourceFilter,
       selectedPriorityFilter: selectedPriorityFilter ?? this.selectedPriorityFilter,
+      selectedCity: selectedCity ?? this.selectedCity,
+      selectedDistrict: selectedDistrict ?? this.selectedDistrict,
+      selectedPincode: selectedPincode ?? this.selectedPincode,
       searchQuery: searchQuery ?? this.searchQuery,
       error: error,
     );
@@ -60,6 +72,9 @@ class LeadNotifier extends StateNotifier<LeadState> {
         stage: state.selectedStageFilter,
         source: state.selectedSourceFilter,
         priority: state.selectedPriorityFilter,
+        cityFilter: state.selectedCity,
+        districtFilter: state.selectedDistrict,
+        pincodeFilter: state.selectedPincode,
         searchQuery: state.searchQuery,
       );
       state = state.copyWith(isLoading: false, leads: leads);
@@ -75,6 +90,36 @@ class LeadNotifier extends StateNotifier<LeadState> {
 
   void setStageFilter(String stage) {
     state = state.copyWith(selectedStageFilter: stage);
+    loadLeads();
+  }
+
+  void setGeoFilters({String? city, String? district, String? pincode}) {
+    state = LeadState(
+      isLoading: true,
+      leads: state.leads,
+      selectedStageFilter: state.selectedStageFilter,
+      selectedSourceFilter: state.selectedSourceFilter,
+      selectedPriorityFilter: state.selectedPriorityFilter,
+      selectedCity: city,
+      selectedDistrict: district,
+      selectedPincode: pincode,
+      searchQuery: state.searchQuery,
+    );
+    loadLeads();
+  }
+
+  void clearGeoFilters() {
+    state = LeadState(
+      isLoading: true,
+      leads: state.leads,
+      selectedStageFilter: state.selectedStageFilter,
+      selectedSourceFilter: state.selectedSourceFilter,
+      selectedPriorityFilter: state.selectedPriorityFilter,
+      selectedCity: null,
+      selectedDistrict: null,
+      selectedPincode: null,
+      searchQuery: state.searchQuery,
+    );
     loadLeads();
   }
 

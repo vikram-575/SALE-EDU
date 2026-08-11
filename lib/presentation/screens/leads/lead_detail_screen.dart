@@ -221,8 +221,10 @@ class _LeadDetailScreenState extends ConsumerState<LeadDetailScreen> with Single
                               _detailRow('Decision Maker', lead.decisionMaker ?? 'N/A'),
                             ]),
                             const SizedBox(height: 16),
-                            _detailSection('SCHOOL INFORMATION', [
-                              _detailRow('City & State', '${lead.city ?? ''}, ${lead.state ?? ''}'),
+                            _detailSection('SCHOOL & LOCATION DETAILS', [
+                              _detailRow('City & State', '${lead.city ?? 'N/A'}, ${lead.state ?? 'N/A'}'),
+                              _detailRow('District', lead.district ?? 'N/A'),
+                              _detailRow('Pincode', lead.pincode ?? 'N/A'),
                               _detailRow('Approx Students', '${lead.approxStudentCount} students'),
                               _detailRow('Approx Teachers', '${lead.approxTeacherCount} teachers'),
                               _detailRow('Current Software', lead.currentSoftware ?? 'None'),

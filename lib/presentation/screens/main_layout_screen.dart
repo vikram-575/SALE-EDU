@@ -5,6 +5,7 @@ import 'dashboard/sales_dashboard_screen.dart';
 import 'leads/lead_list_screen.dart';
 import 'pipeline/pipeline_kanban_screen.dart';
 import 'telegram/telegram_inbox_screen.dart';
+import 'notes/sales_notes_screen.dart';
 import 'tasks/task_list_screen.dart';
 import 'copilot/ai_copilot_sheet.dart';
 import 'analytics/sales_analytics_screen.dart';
@@ -25,7 +26,7 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
     const LeadListScreen(),
     const PipelineKanbanScreen(),
     const TelegramInboxScreen(),
-    const TaskListScreen(),
+    const SalesNotesScreen(),
   ];
 
   void _openCopilot() {
@@ -50,6 +51,10 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: AppColors.surface,
+          selectedItemColor: AppColors.primary,
+          unselectedItemColor: AppColors.textMuted,
           onTap: (index) => setState(() => _currentIndex = index),
           items: const [
             BottomNavigationBarItem(
@@ -73,9 +78,9 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
               label: 'Telegram',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.task_alt_outlined),
-              activeIcon: Icon(Icons.task_alt),
-              label: 'Tasks',
+              icon: Icon(Icons.note_alt_outlined),
+              activeIcon: Icon(Icons.note_alt),
+              label: 'Notes',
             ),
           ],
         ),
@@ -100,9 +105,25 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
                   Icon(Icons.hub, size: 40, color: AppColors.primary),
                   SizedBox(height: 10),
                   Text('EDUCATESETU SALES', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text('Revenue Operating System', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  Text('Revenue Operating System 2.0', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                 ],
               ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.note_alt_outlined, color: AppColors.primary),
+              title: const Text('Sales Field Notes Hub', style: TextStyle(color: AppColors.textPrimary)),
+              onTap: () {
+                Navigator.pop(context);
+                setState(() => _currentIndex = 4);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.task_alt_outlined, color: AppColors.warning),
+              title: const Text('Tasks & Follow-ups', style: TextStyle(color: AppColors.textPrimary)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const TaskListScreen()));
+              },
             ),
             ListTile(
               leading: const Icon(Icons.analytics_outlined, color: AppColors.primary),

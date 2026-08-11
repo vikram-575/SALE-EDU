@@ -23,6 +23,8 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
   late TextEditingController _emailController;
   late TextEditingController _telegramController;
   late TextEditingController _cityController;
+  late TextEditingController _districtController;
+  late TextEditingController _pincodeController;
   late TextEditingController _stateController;
   late TextEditingController _studentCountController;
   late TextEditingController _teacherCountController;
@@ -44,6 +46,8 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
     _emailController = TextEditingController(text: widget.lead?.email ?? '');
     _telegramController = TextEditingController(text: widget.lead?.telegramUsername ?? '');
     _cityController = TextEditingController(text: widget.lead?.city ?? '');
+    _districtController = TextEditingController(text: widget.lead?.district ?? '');
+    _pincodeController = TextEditingController(text: widget.lead?.pincode ?? '');
     _stateController = TextEditingController(text: widget.lead?.state ?? '');
     _studentCountController = TextEditingController(text: widget.lead?.approxStudentCount.toString() ?? '500');
     _teacherCountController = TextEditingController(text: widget.lead?.approxTeacherCount.toString() ?? '25');
@@ -70,6 +74,8 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
       email: _emailController.text.trim(),
       telegramUsername: _telegramController.text.trim(),
       city: _cityController.text.trim(),
+      district: _districtController.text.trim(),
+      pincode: _pincodeController.text.trim(),
       state: _stateController.text.trim(),
       approxStudentCount: int.tryParse(_studentCountController.text) ?? 0,
       approxTeacherCount: int.tryParse(_teacherCountController.text) ?? 0,
@@ -119,6 +125,27 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
                       controller: _cityController,
                       style: const TextStyle(color: AppColors.textPrimary),
                       decoration: const InputDecoration(labelText: 'City'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _districtController,
+                      style: const TextStyle(color: AppColors.textPrimary),
+                      decoration: const InputDecoration(labelText: 'District'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _pincodeController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: AppColors.textPrimary),
+                      decoration: const InputDecoration(labelText: 'Pincode'),
                     ),
                   ),
                   const SizedBox(width: 12),
