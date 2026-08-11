@@ -1,0 +1,11 @@
+{
+  "name": "educatesetu-sales-root",
+  "version": "1.0.0",
+  "description": "EducateSetu Revenue OS & Sales Agent Root Package",
+  "main": "server/index.js",
+  "scripts": {
+    "postinstall": "cd server && npm install",
+    "start": "cd server && node index.js"
+  },
+  "dependencies": {}
+}
