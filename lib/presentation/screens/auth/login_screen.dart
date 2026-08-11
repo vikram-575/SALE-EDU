@@ -14,7 +14,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController(text: 'vikramtomar0505@gmail.com');
-  final _passwordController = TextEditingController();
+  final _passwordController = TextEditingController(text: '9090808090');
   final _formKey = GlobalKey<FormState>();
 
   void _handleLogin() async {
@@ -25,7 +25,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (email.isEmpty) return;
 
     // Perform login or enter app as authenticated sales agent
-    await authNotifier.login(email, password.isEmpty ? 'EducateSetu123!' : password);
+    await authNotifier.login(email, password.isEmpty ? '9090808090' : password);
 
     if (mounted) {
       Navigator.pushReplacement(
