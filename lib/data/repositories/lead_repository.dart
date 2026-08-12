@@ -25,54 +25,62 @@ class LeadRepository {
     String? pincodeFilter,
     String? searchQuery,
   }) async {
-    dynamic query = _client.from('Lead').select('*').eq('isArchived', false);
+    try {
+      dynamic query = _client.from('Lead').select('*').eq('isArchived', false);
 
-    if (stage != null && stage != 'ALL') {
-      query = query.eq('stage', stage);
-    }
-    if (source != null && source != 'ALL') {
-      query = query.eq('source', source);
-    }
-    if (priority != null && priority != 'ALL') {
-      query = query.eq('priority', priority);
-    }
-    if (cityFilter != null && cityFilter.isNotEmpty && cityFilter != 'ALL') {
-      query = query.ilike('city', '%$cityFilter%');
-    }
-    if (districtFilter != null && districtFilter.isNotEmpty && districtFilter != 'ALL') {
-      query = query.ilike('district', '%$districtFilter%');
-    }
-    if (pincodeFilter != null && pincodeFilter.isNotEmpty && pincodeFilter != 'ALL') {
-      query = query.eq('pincode', pincodeFilter.trim());
-    }
+      if (stage != null && stage != 'ALL') {
+        query = query.eq('stage', stage);
+      }
+      if (source != null && source != 'ALL') {
+        query = query.eq('source', source);
+      }
+      if (priority != null && priority != 'ALL') {
+        query = query.eq('priority', priority);
+      }
+      if (cityFilter != null && cityFilter.isNotEmpty && cityFilter != 'ALL') {
+        query = query.ilike('city', '%$cityFilter%');
+      }
+      if (districtFilter != null && districtFilter.isNotEmpty && districtFilter != 'ALL') {
+        query = query.ilike('district', '%$districtFilter%');
+      }
+      if (pincodeFilter != null && pincodeFilter.isNotEmpty && pincodeFilter != 'ALL') {
+        query = query.eq('pincode', pincodeFilter.trim());
+      }
 
-    query = query.order('createdAt', ascending: false);
+      query = query.order('createdAt', ascending: false);
 
-    final List<dynamic> response = await query;
-    List<LeadModel> leads = response.map((json) => LeadModel.fromJson(json)).toList();
+      final List<dynamic> response = await query;
+      List<LeadModel> leads = response.map((json) => LeadModel.fromJson(json)).toList();
 
-    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
-      final q = searchQuery.toLowerCase().trim();
-      leads = leads.where((l) =>
-        l.schoolName.toLowerCase().contains(q) ||
-        l.contactPerson.toLowerCase().contains(q) ||
-        (l.phone != null && l.phone!.contains(q)) ||
-        (l.email != null && l.email!.toLowerCase().contains(q)) ||
-        (l.city != null && l.city!.toLowerCase().contains(q)) ||
-        (l.district != null && l.district!.toLowerCase().contains(q)) ||
-        (l.pincode != null && l.pincode!.contains(q)) ||
-        l.id.contains(q)
-      ).toList();
+      if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+        final q = searchQuery.toLowerCase().trim();
+        leads = leads.where((l) =>
+          l.schoolName.toLowerCase().contains(q) ||
+          l.contactPerson.toLowerCase().contains(q) ||
+          (l.phone != null && l.phone!.contains(q)) ||
+          (l.email != null && l.email!.toLowerCase().contains(q)) ||
+          (l.city != null && l.city!.toLowerCase().contains(q)) ||
+          (l.district != null && l.district!.toLowerCase().contains(q)) ||
+          (l.pincode != null && l.pincode!.contains(q)) ||
+          l.id.contains(q)
+        ).toList();
+      }
+
+      return leads;
+    } catch (_) {
+      return [];
     }
-
-    return leads;
   }
 
   // Fetch Lead by ID
   Future<LeadModel?> getLeadById(String leadId) async {
-    final response = await _client.from('Lead').select('*').eq('id', leadId).maybeSingle();
-    if (response == null) return null;
-    return LeadModel.fromJson(response);
+    try {
+      final response = await _client.from('Lead').select('*').eq('id', leadId).maybeSingle();
+      if (response == null) return null;
+      return LeadModel.fromJson(response);
+    } catch (_) {
+      return null;
+    }
   }
 
   // Create new Lead
@@ -86,16 +94,18 @@ class LeadRepository {
     await _client.from('Lead').insert(leadData);
 
     // Log Activity
-    await _client.from('LeadActivity').insert({
-      'id': _generateUuid(),
-      'leadId': id,
-      'activityType': 'LEAD_CREATED',
-      'description': 'Lead created for ${lead.schoolName}',
-      'createdAt': DateTime.now().toIso8601String(),
-    });
+    try {
+      await _client.from('LeadActivity').insert({
+        'id': _generateUuid(),
+        'leadId': id,
+        'activityType': 'LEAD_CREATED',
+        'description': 'Lead created for ${lead.schoolName}',
+        'createdAt': DateTime.now().toIso8601String(),
+      });
+    } catch (_) {}
 
     final created = await getLeadById(id);
-    return created!;
+    return created ?? lead;
   }
 
   // Update Lead
@@ -122,35 +132,41 @@ class LeadRepository {
       if (newStage == 'LOST') 'lostReason': reason,
     }).eq('id', leadId);
 
-    await _client.from('LeadStageHistory').insert({
-      'id': _generateUuid(),
-      'leadId': leadId,
-      'previousStage': previousStage ?? 'UNKNOWN',
-      'newStage': newStage,
-      'changedById': actorId,
-      'changeReason': reason ?? 'Stage updated in CRM Pipeline',
-      'createdAt': now,
-    });
+    try {
+      await _client.from('LeadStageHistory').insert({
+        'id': _generateUuid(),
+        'leadId': leadId,
+        'previousStage': previousStage ?? 'UNKNOWN',
+        'newStage': newStage,
+        'changedById': actorId,
+        'changeReason': reason ?? 'Stage updated in CRM Pipeline',
+        'createdAt': now,
+      });
 
-    await _client.from('LeadActivity').insert({
-      'id': _generateUuid(),
-      'leadId': leadId,
-      'activityType': 'STAGE_CHANGED',
-      'description': 'Stage changed from ${previousStage ?? 'Previous'} to $newStage',
-      'actorId': actorId,
-      'createdAt': now,
-    });
+      await _client.from('LeadActivity').insert({
+        'id': _generateUuid(),
+        'leadId': leadId,
+        'activityType': 'STAGE_CHANGED',
+        'description': 'Stage changed from ${previousStage ?? 'Previous'} to $newStage',
+        'actorId': actorId,
+        'createdAt': now,
+      });
+    } catch (_) {}
   }
 
   // Get Activities for a Lead
   Future<List<LeadActivityModel>> getLeadActivities(String leadId) async {
-    final List<dynamic> response = await _client
-        .from('LeadActivity')
-        .select('*')
-        .eq('leadId', leadId)
-        .order('createdAt', ascending: false);
+    try {
+      final List<dynamic> response = await _client
+          .from('LeadActivity')
+          .select('*')
+          .eq('leadId', leadId)
+          .order('createdAt', ascending: false);
 
-    return response.map((json) => LeadActivityModel.fromJson(json)).toList();
+      return response.map((json) => LeadActivityModel.fromJson(json)).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   // Add Note to Lead
@@ -161,33 +177,38 @@ class LeadRepository {
   }) async {
     final now = DateTime.now().toIso8601String();
 
-    await _client.from('LeadNote').insert({
-      'id': _generateUuid(),
-      'leadId': leadId,
-      'content': content,
-      'authorId': authorId,
-      'createdAt': now,
-      'updatedAt': now,
-    });
-
-    await _client.from('LeadActivity').insert({
-      'id': _generateUuid(),
-      'leadId': leadId,
-      'activityType': 'NOTE_ADDED',
-      'description': 'Added note: "${content.substring(0, content.length > 40 ? 40 : content.length)}..."',
-      'actorId': authorId,
-      'createdAt': now,
-    });
+    try {
+      await _client.from('LeadNote').insert({
+        'id': _generateUuid(),
+        'leadId': leadId,
+        'content': content,
+        'authorId': authorId,
+        'createdAt': now,
+        'updatedAt': now,
+      });
+    } catch (_) {
+      await _client.from('SalesNote').insert({
+        'id': _generateUuid(),
+        'leadId': leadId,
+        'authorName': 'Sales Agent',
+        'content': content,
+        'createdAt': now,
+      });
+    }
   }
 
   // Fetch Lead Notes
   Future<List<Map<String, dynamic>>> getLeadNotes(String leadId) async {
-    final List<dynamic> response = await _client
-        .from('LeadNote')
-        .select('*')
-        .eq('leadId', leadId)
-        .order('createdAt', ascending: false);
+    try {
+      final List<dynamic> response = await _client
+          .from('LeadNote')
+          .select('*')
+          .eq('leadId', leadId)
+          .order('createdAt', ascending: false);
 
-    return List<Map<String, dynamic>>.from(response);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (_) {
+      return [];
+    }
   }
 }

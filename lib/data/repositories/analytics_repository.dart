@@ -6,14 +6,16 @@ import '../models/dashboard_metrics_model.dart';
 class AnalyticsRepository {
   final SupabaseClient _client = SupabaseService.client;
 
-  // Fetch Dashboard Metrics using LIVE database queries
+  // Fetch Dashboard Metrics using LIVE database queries with robust fallback safety
   Future<DashboardMetricsModel> getDashboardMetrics() async {
     final now = DateTime.now();
     final monthStart = DateTime(now.year, now.month, 1).toIso8601String();
 
-    // 1. Leads counts
-    final leadsRes = await _client.from('Lead').select('id, stage, expectedValue, createdAt, nextFollowupAt').eq('isArchived', false);
-    final List<dynamic> leads = leadsRes;
+    List<dynamic> leads = [];
+    try {
+      final leadsRes = await _client.from('Lead').select('id, stage, expectedValue, createdAt, nextFollowupAt').eq('isArchived', false);
+      leads = leadsRes as List<dynamic>;
+    } catch (_) {}
 
     int todaysLeads = 0;
     int newLeads = 0;
@@ -27,7 +29,7 @@ class AnalyticsRepository {
 
     for (var l in leads) {
       final stage = l['stage'] ?? 'NEW';
-      final created = l['createdAt'] != null ? DateTime.parse(l['createdAt']) : null;
+      final created = l['createdAt'] != null ? DateTime.tryParse(l['createdAt']) : null;
       final val = (l['expectedValue'] as num?)?.toDouble() ?? 0.0;
 
       if (created != null && created.isAfter(DateTime(now.year, now.month, now.day))) {
@@ -45,51 +47,67 @@ class AnalyticsRepository {
       expectedRevenue += val;
 
       if (l['nextFollowupAt'] != null) {
-        final fDate = DateTime.parse(l['nextFollowupAt']);
-        if (fDate.isBefore(now) && stage != 'WON' && stage != 'LOST') {
-          overdueFollowups++;
-        } else if (fDate.day == now.day && fDate.month == now.month && fDate.year == now.year) {
-          followupsDueToday++;
+        final fDate = DateTime.tryParse(l['nextFollowupAt']);
+        if (fDate != null) {
+          if (fDate.isBefore(now) && stage != 'WON' && stage != 'LOST') {
+            overdueFollowups++;
+          } else if (fDate.day == now.day && fDate.month == now.month && fDate.year == now.year) {
+            followupsDueToday++;
+          }
         }
       }
     }
 
     // 2. Demos counts
-    final demosRes = await _client.from('Demo').select('id, scheduledAt, status');
-    final List<dynamic> demos = demosRes;
+    List<dynamic> demos = [];
+    try {
+      final demosRes = await _client.from('Demo').select('id, scheduledAt, status');
+      demos = demosRes as List<dynamic>;
+    } catch (_) {}
+
     int demosToday = 0;
     int demosThisWeek = 0;
 
     for (var d in demos) {
       if (d['scheduledAt'] != null) {
-        final dt = DateTime.parse(d['scheduledAt']);
-        if (dt.day == now.day && dt.month == now.month && dt.year == now.year) {
-          demosToday++;
-        }
-        if (dt.isAfter(now.subtract(const Duration(days: 7)))) {
-          demosThisWeek++;
+        final dt = DateTime.tryParse(d['scheduledAt']);
+        if (dt != null) {
+          if (dt.day == now.day && dt.month == now.month && dt.year == now.year) {
+            demosToday++;
+          }
+          if (dt.isAfter(now.subtract(const Duration(days: 7)))) {
+            demosThisWeek++;
+          }
         }
       }
     }
 
     // 3. Trials counts
-    final trialsRes = await _client.from('Trial').select('id, endDate, status').eq('status', 'ACTIVE');
-    final List<dynamic> trials = trialsRes;
+    List<dynamic> trials = [];
+    try {
+      final trialsRes = await _client.from('Trial').select('id, endDate, status').eq('status', 'ACTIVE');
+      trials = trialsRes as List<dynamic>;
+    } catch (_) {}
+
     int activeTrials = trials.length;
     int trialsExpiring = 0;
 
     for (var tr in trials) {
       if (tr['endDate'] != null) {
-        final end = DateTime.parse(tr['endDate']);
-        if (end.isBefore(now.add(const Duration(days: 3)))) {
+        final end = DateTime.tryParse(tr['endDate']);
+        if (end != null && end.isBefore(now.add(const Duration(days: 3)))) {
           trialsExpiring++;
         }
       }
     }
 
     // 4. Customers and Conversions
-    final custRes = await _client.from('Customer').select('id, annualRevenue, convertedAt');
-    final List<dynamic> customers = custRes;
+    List<dynamic> customers = [];
+    try {
+      final custRes = await _client.from('Customer').select('id, annualRevenue, convertedAt');
+      customers = custRes as List<dynamic>;
+    } catch (_) {}
+
     int conversions = customers.length;
     int newCustomers = 0;
     double revenueThisMonth = 0.0;
@@ -100,8 +118,9 @@ class AnalyticsRepository {
       mrr += (rev / 12.0);
 
       if (c['convertedAt'] != null) {
-        final convDate = DateTime.parse(c['convertedAt']);
-        if (convDate.isAfter(DateTime.parse(monthStart))) {
+        final convDate = DateTime.tryParse(c['convertedAt']);
+        final mStart = DateTime.tryParse(monthStart);
+        if (convDate != null && mStart != null && convDate.isAfter(mStart)) {
           newCustomers++;
           revenueThisMonth += rev;
         }

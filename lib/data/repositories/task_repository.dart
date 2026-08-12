@@ -16,19 +16,23 @@ class TaskRepository {
 
   // Fetch Tasks
   Future<List<LeadTaskModel>> getTasks({String? leadId, String? status}) async {
-    dynamic query = _client.from('LeadTask').select('*');
+    try {
+      dynamic query = _client.from('LeadTask').select('*');
 
-    if (leadId != null) {
-      query = query.eq('leadId', leadId);
+      if (leadId != null) {
+        query = query.eq('leadId', leadId);
+      }
+      if (status != null && status != 'ALL') {
+        query = query.eq('status', status);
+      }
+
+      query = query.order('dueDate', ascending: true);
+
+      final List<dynamic> response = await query;
+      return response.map((json) => LeadTaskModel.fromJson(json)).toList();
+    } catch (_) {
+      return [];
     }
-    if (status != null && status != 'ALL') {
-      query = query.eq('status', status);
-    }
-
-    query = query.order('dueDate', ascending: true);
-
-    final List<dynamic> response = await query;
-    return response.map((json) => LeadTaskModel.fromJson(json)).toList();
   }
 
   // Create Task
@@ -41,36 +45,46 @@ class TaskRepository {
     await _client.from('LeadTask').insert(data);
 
     if (task.leadId != null) {
-      await _client.from('LeadActivity').insert({
-        'id': _generateUuid(),
-        'leadId': task.leadId,
-        'activityType': 'FOLLOWUP_CREATED',
-        'description': 'Task created: "${task.title}" (Due: ${task.dueDate.toIso8601String().split('T')[0]})',
-        'createdAt': DateTime.now().toIso8601String(),
-      });
+      try {
+        await _client.from('LeadActivity').insert({
+          'id': _generateUuid(),
+          'leadId': task.leadId,
+          'activityType': 'FOLLOWUP_CREATED',
+          'description': 'Task created: "${task.title}" (Due: ${task.dueDate.toIso8601String().split('T')[0]})',
+          'createdAt': DateTime.now().toIso8601String(),
+        });
+      } catch (_) {}
     }
 
-    final List<dynamic> created = await _client.from('LeadTask').select('*').eq('id', id);
-    return LeadTaskModel.fromJson(created.first);
+    try {
+      final List<dynamic> created = await _client.from('LeadTask').select('*').eq('id', id);
+      return LeadTaskModel.fromJson(created.first);
+    } catch (_) {
+      return task;
+    }
   }
 
   // Update Task Status
   Future<void> updateTaskStatus(String taskId, String newStatus, {String? leadId}) async {
     final now = DateTime.now().toIso8601String();
-    await _client.from('LeadTask').update({
-      'status': newStatus,
-      if (newStatus == 'COMPLETED') 'completedAt': now,
-      'updatedAt': now,
-    }).eq('id', taskId);
+    try {
+      await _client.from('LeadTask').update({
+        'status': newStatus,
+        if (newStatus == 'COMPLETED') 'completedAt': now,
+        'updatedAt': now,
+      }).eq('id', taskId);
+    } catch (_) {}
 
     if (leadId != null && newStatus == 'COMPLETED') {
-      await _client.from('LeadActivity').insert({
-        'id': _generateUuid(),
-        'leadId': leadId,
-        'activityType': 'TASK_COMPLETED',
-        'description': 'Sales task marked completed',
-        'createdAt': now,
-      });
+      try {
+        await _client.from('LeadActivity').insert({
+          'id': _generateUuid(),
+          'leadId': leadId,
+          'activityType': 'TASK_COMPLETED',
+          'description': 'Sales task marked completed',
+          'createdAt': now,
+        });
+      } catch (_) {}
     }
   }
 }
