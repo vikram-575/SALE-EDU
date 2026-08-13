@@ -53,7 +53,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await loadUser();
       return true;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: e.toString().replaceAll('Exception: ', ''));
       return false;
     }
   }
