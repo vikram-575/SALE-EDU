@@ -33,9 +33,10 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
   late TextEditingController _expectedValueController;
   late TextEditingController _decisionMakerController;
 
-  String _source = 'Website';
+  String _source = 'FIELD_VISIT';
   String _stage = 'NEW';
   String _priority = 'WARM';
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -48,12 +49,12 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
     _cityController = TextEditingController(text: widget.lead?.city ?? '');
     _districtController = TextEditingController(text: widget.lead?.district ?? '');
     _pincodeController = TextEditingController(text: widget.lead?.pincode ?? '');
-    _stateController = TextEditingController(text: widget.lead?.state ?? '');
+    _stateController = TextEditingController(text: widget.lead?.state ?? 'Rajasthan');
     _studentCountController = TextEditingController(text: widget.lead?.approxStudentCount.toString() ?? '500');
     _teacherCountController = TextEditingController(text: widget.lead?.approxTeacherCount.toString() ?? '25');
     _softwareController = TextEditingController(text: widget.lead?.currentSoftware ?? '');
     _problemsController = TextEditingController(text: widget.lead?.currentProblems ?? '');
-    _expectedValueController = TextEditingController(text: widget.lead?.expectedValue.toString() ?? '50000');
+    _expectedValueController = TextEditingController(text: widget.lead?.expectedValue.toString() ?? '150000');
     _decisionMakerController = TextEditingController(text: widget.lead?.decisionMaker ?? '');
 
     if (widget.lead != null) {
@@ -65,6 +66,8 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
 
   void _saveLead() async {
     if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSaving = true);
 
     final newLead = LeadModel(
       id: widget.lead?.id ?? '',
@@ -90,9 +93,38 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
       updatedAt: DateTime.now(),
     );
 
-    final success = await ref.read(leadProvider.notifier).createLead(newLead);
-    if (success && mounted) {
-      Navigator.pop(context);
+    try {
+      final success = await ref.read(leadProvider.notifier).createLead(newLead);
+      if (mounted) {
+        setState(() => _isSaving = false);
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🎉 Lead saved successfully to Supabase!'),
+              backgroundColor: AppColors.success,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          Navigator.pop(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚠️ Could not save lead. Please check connection.'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error saving lead: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
     }
   }
 
@@ -230,7 +262,7 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      initialValue: _stage,
+                      value: _stage,
                       dropdownColor: AppColors.surface,
                       style: const TextStyle(color: AppColors.textPrimary),
                       decoration: const InputDecoration(labelText: 'Stage'),
@@ -243,7 +275,7 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      initialValue: _priority,
+                      value: _priority,
                       dropdownColor: AppColors.surface,
                       style: const TextStyle(color: AppColors.textPrimary),
                       decoration: const InputDecoration(labelText: 'Priority'),
@@ -275,12 +307,14 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _saveLead,
+                  onPressed: _isSaving ? null : _saveLead,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: Text('SAVE LEAD TO SUPABASE', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
+                  child: _isSaving
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : Text('SAVE LEAD TO SUPABASE', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
                 ),
               )
             ],

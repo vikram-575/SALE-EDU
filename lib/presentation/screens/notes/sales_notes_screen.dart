@@ -51,6 +51,7 @@ class _SalesNotesScreenState extends ConsumerState<SalesNotesScreen> {
     final noteTextController = TextEditingController();
     List<String> selectedTags = [];
     bool isPinned = false;
+    bool isSubmitting = false;
 
     showModalBottomSheet(
       context: context,
@@ -80,7 +81,6 @@ class _SalesNotesScreenState extends ConsumerState<SalesNotesScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Lead / School Dropdown
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: 'Link to School / Lead (Optional)'),
                     dropdownColor: AppColors.surface,
@@ -150,23 +150,40 @@ class _SalesNotesScreenState extends ConsumerState<SalesNotesScreen> {
                     width: double.infinity,
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: () async {
-                        final text = noteTextController.text.trim();
-                        if (text.isEmpty) return;
+                      onPressed: isSubmitting
+                          ? null
+                          : () async {
+                              final text = noteTextController.text.trim();
+                              if (text.isEmpty) return;
 
-                        await _noteRepo.createNote(
-                          leadId: selectedLeadId,
-                          schoolName: selectedSchoolName,
-                          content: text,
-                          tags: selectedTags,
-                          isPinned: isPinned,
-                        );
-                        if (!dialogContext.mounted) return;
-                        Navigator.pop(dialogContext);
-                        _loadNotes();
-                      },
+                              setModalState(() => isSubmitting = true);
+
+                              final res = await _noteRepo.createNote(
+                                leadId: selectedLeadId,
+                                schoolName: selectedSchoolName,
+                                content: text,
+                                tags: selectedTags,
+                                isPinned: isPinned,
+                              );
+
+                              if (!dialogContext.mounted) return;
+                              Navigator.pop(dialogContext);
+
+                              if (res && mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('🎉 Sales Note saved successfully to Supabase!'),
+                                    backgroundColor: AppColors.success,
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                                _loadNotes();
+                              }
+                            },
                       style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                      child: Text('SAVE SALES NOTE', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white)),
+                      child: isSubmitting
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : Text('SAVE SALES NOTE', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   )
                 ],
@@ -198,7 +215,6 @@ class _SalesNotesScreenState extends ConsumerState<SalesNotesScreen> {
       ),
       body: Column(
         children: [
-          // Search & Filter Bar
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -247,7 +263,6 @@ class _SalesNotesScreenState extends ConsumerState<SalesNotesScreen> {
             ),
           ),
 
-          // Notes List
           Expanded(
             child: _isLoading
                 ? const LoadingIndicator(message: 'Loading Sales Notes...')
