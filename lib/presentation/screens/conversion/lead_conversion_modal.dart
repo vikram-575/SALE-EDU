@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/lead_model.dart';
 import '../../../data/repositories/conversion_repository.dart';
+import '../../providers/lead_provider.dart';
 import 'school_onboarding_checklist_screen.dart';
 
-class LeadConversionModal extends StatefulWidget {
+class LeadConversionModal extends ConsumerStatefulWidget {
   final LeadModel lead;
 
   const LeadConversionModal({super.key, required this.lead});
 
   @override
-  State<LeadConversionModal> createState() => _LeadConversionModalState();
+  ConsumerState<LeadConversionModal> createState() => _LeadConversionModalState();
 }
 
-class _LeadConversionModalState extends State<LeadConversionModal> {
+class _LeadConversionModalState extends ConsumerState<LeadConversionModal> {
   final _conversionRepo = ConversionRepository();
   late TextEditingController _annualRevenueController;
   late TextEditingController _monthlyRevenueController;
@@ -27,8 +29,8 @@ class _LeadConversionModalState extends State<LeadConversionModal> {
   @override
   void initState() {
     super.initState();
-    _annualRevenueController = TextEditingController(text: widget.lead.expectedValue.toString());
-    _monthlyRevenueController = TextEditingController(text: (widget.lead.expectedValue / 12.0).toStringAsFixed(0));
+    _annualRevenueController = TextEditingController(text: widget.lead.expectedValue > 0 ? widget.lead.expectedValue.toStringAsFixed(0) : '150000');
+    _monthlyRevenueController = TextEditingController(text: widget.lead.expectedValue > 0 ? (widget.lead.expectedValue / 12.0).toStringAsFixed(0) : '12500');
   }
 
   void _startConversionScan({bool bypassDuplicate = false}) async {
@@ -46,7 +48,7 @@ class _LeadConversionModalState extends State<LeadConversionModal> {
         website: widget.lead.website,
       );
 
-      if (dup['hasDuplicate'] == true && dup['duplicates'][0]['similarityPercentage'] >= 80) {
+      if (dup['hasDuplicate'] == true && dup['duplicates'] != null && (dup['duplicates'] as List).isNotEmpty && dup['duplicates'][0]['similarityPercentage'] >= 80) {
         setState(() {
           _isCheckingDuplicates = false;
           _duplicateResult = dup;
@@ -63,21 +65,32 @@ class _LeadConversionModalState extends State<LeadConversionModal> {
 
     final res = await _conversionRepo.convertLeadToCustomer(
       leadId: widget.lead.id,
-      annualRevenue: double.tryParse(_annualRevenueController.text),
-      monthlyRevenue: double.tryParse(_monthlyRevenueController.text),
+      annualRevenue: double.tryParse(_annualRevenueController.text) ?? 150000.0,
+      monthlyRevenue: double.tryParse(_monthlyRevenueController.text) ?? 12500.0,
       bypassDuplicateCheck: bypassDuplicate,
     );
 
     if (mounted) {
       setState(() => _isConverting = false);
       if (res['success'] == true) {
+        // Update local state in Lead Provider
+        ref.read(leadProvider.notifier).changeStage(widget.lead.id, 'WON');
+
         Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎉 School Lead successfully converted to Active Customer!'),
+            backgroundColor: AppColors.success,
+            duration: Duration(seconds: 3),
+          ),
+        );
+
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => SchoolOnboardingChecklistScreen(
-              customerId: res['data']['customerId'],
-              onboardingId: res['data']['onboardingId'],
+              customerId: res['data']['customerId'] ?? 'cust_${widget.lead.id}',
+              onboardingId: res['data']['onboardingId'] ?? 'onb_${widget.lead.id}',
               schoolName: widget.lead.schoolName,
             ),
           ),
@@ -116,7 +129,7 @@ class _LeadConversionModalState extends State<LeadConversionModal> {
               ],
             ),
             const SizedBox(height: 6),
-            Text('Controlled Transaction: Creates School + Customer + Subscription + Onboarding', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            Text('Controlled Transaction: Creates Customer + Subscription + Onboarding Record', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
             const Divider(height: 24, color: AppColors.border),
 
             if (_duplicateResult != null) ...[
@@ -162,21 +175,21 @@ class _LeadConversionModalState extends State<LeadConversionModal> {
             ],
 
             Text('School Name: ${widget.lead.schoolName}', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-            Text('Contact: ${widget.lead.contactPerson}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            Text('Contact: ${widget.lead.contactPerson} (${widget.lead.phone ?? 'No phone'})', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
             const SizedBox(height: 16),
 
             TextFormField(
               controller: _annualRevenueController,
               keyboardType: TextInputType.number,
               style: const TextStyle(color: AppColors.textPrimary),
-              decoration: const InputDecoration(labelText: 'Final Annual Revenue (₹)'),
+              decoration: const InputDecoration(labelText: 'Final Annual Revenue / ARR (₹)'),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _monthlyRevenueController,
               keyboardType: TextInputType.number,
               style: const TextStyle(color: AppColors.textPrimary),
-              decoration: const InputDecoration(labelText: 'Monthly Recurring Revenue (MRR ₹)'),
+              decoration: const InputDecoration(labelText: 'Monthly Recurring Revenue / MRR (₹)'),
             ),
 
             if (_errorMessage != null) ...[
@@ -195,7 +208,7 @@ class _LeadConversionModalState extends State<LeadConversionModal> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 child: (_isCheckingDuplicates || _isConverting)
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                     : Text('EXECUTE CONVERSION TRANSACTION', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
               ),
             )

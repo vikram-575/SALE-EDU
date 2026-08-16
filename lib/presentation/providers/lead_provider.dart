@@ -136,11 +136,25 @@ class LeadNotifier extends StateNotifier<LeadState> {
   // Fast optimistic update + Supabase sync
   Future<bool> createLead(LeadModel lead) async {
     try {
-      // Optimistic update
       final updatedLeads = [lead, ...state.leads];
       state = state.copyWith(leads: updatedLeads);
 
       await _repository.createLead(lead);
+      await loadLeads();
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+
+  // Fast update lead
+  Future<bool> updateLead(LeadModel lead) async {
+    try {
+      final updatedLeads = state.leads.map((l) => l.id == lead.id ? lead : l).toList();
+      state = state.copyWith(leads: updatedLeads);
+
+      await _repository.updateLead(lead);
       await loadLeads();
       return true;
     } catch (e) {

@@ -1,6 +1,4 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:crypto/crypto.dart';
-import 'dart:convert';
 import '../../core/network/supabase_client.dart';
 import '../models/lead_model.dart';
 import '../models/lead_activity_model.dart';
@@ -8,11 +6,8 @@ import '../models/lead_activity_model.dart';
 class LeadRepository {
   final SupabaseClient _client = SupabaseService.client;
 
-  String _generateUuid() {
-    final now = DateTime.now().microsecondsSinceEpoch.toString();
-    final bytes = utf8.encode(now + (1000 + DateTime.now().millisecond).toString());
-    final digest = sha256.convert(bytes).toString();
-    return '${digest.substring(0, 8)}-${digest.substring(8, 12)}-4${digest.substring(13, 16)}-8${digest.substring(17, 20)}-${digest.substring(20, 32)}';
+  String _generateId() {
+    return 'lead_${DateTime.now().millisecondsSinceEpoch}';
   }
 
   // Fetch all live leads with Geo-filtering (City, District, Pincode)
@@ -30,9 +25,6 @@ class LeadRepository {
 
       if (stage != null && stage != 'ALL') {
         query = query.eq('stage', stage);
-      }
-      if (source != null && source != 'ALL') {
-        query = query.eq('source', source);
       }
       if (priority != null && priority != 'ALL') {
         query = query.eq('priority', priority);
@@ -67,7 +59,7 @@ class LeadRepository {
       }
 
       return leads;
-    } catch (_) {
+    } catch (e) {
       return [];
     }
   }
@@ -85,38 +77,58 @@ class LeadRepository {
 
   // Create new Lead
   Future<LeadModel> createLead(LeadModel lead) async {
-    final id = lead.id.isEmpty ? _generateUuid() : lead.id;
-    final leadData = lead.toJson();
-    leadData['id'] = id;
-    leadData['createdAt'] = DateTime.now().toIso8601String();
-    leadData['updatedAt'] = DateTime.now().toIso8601String();
+    final id = lead.id.isEmpty ? _generateId() : lead.id;
+    final now = DateTime.now().toIso8601String();
+    
+    final sanitizedLead = lead.copyWith(
+      id: id,
+      createdAt: lead.createdAt,
+      updatedAt: DateTime.now(),
+    );
 
-    await _client.from('Lead').insert(leadData);
+    final payload = sanitizedLead.toSupabaseMap();
+    payload['id'] = id;
+    payload['createdAt'] = now;
+    payload['updatedAt'] = now;
 
-    // Log Activity
+    await _client.from('Lead').insert(payload);
+
+    // Also record an initial lead note / timeline entry
     try {
-      await _client.from('LeadActivity').insert({
-        'id': _generateUuid(),
+      await _client.from('LeadNote').insert({
+        'id': 'lnote_${DateTime.now().millisecondsSinceEpoch}',
         'leadId': id,
-        'activityType': 'LEAD_CREATED',
-        'description': 'Lead created for ${lead.schoolName}',
-        'createdAt': DateTime.now().toIso8601String(),
+        'content': 'Lead created for ${lead.schoolName} (${lead.contactPerson})',
+        'authorId': 'agent_vikram_01',
+        'createdAt': now,
+      });
+    } catch (_) {}
+
+    try {
+      await _client.from('SalesNote').insert({
+        'id': 'snote_${DateTime.now().millisecondsSinceEpoch}',
+        'leadId': id,
+        'schoolName': lead.schoolName,
+        'authorName': 'Vikram',
+        'content': 'New field lead registered: ${lead.schoolName}',
+        'tags': ['#NewLead', '#${lead.stage}'],
+        'createdAt': now,
       });
     } catch (_) {}
 
     final created = await getLeadById(id);
-    return created ?? lead;
+    return created ?? sanitizedLead;
   }
 
   // Update Lead
   Future<void> updateLead(LeadModel lead) async {
-    final leadData = lead.toJson();
-    leadData['updatedAt'] = DateTime.now().toIso8601String();
+    final payload = lead.toSupabaseMap();
+    payload['updatedAt'] = DateTime.now().toIso8601String();
 
-    await _client.from('Lead').update(leadData).eq('id', lead.id);
+    await _client.from('Lead').update(payload).eq('id', lead.id);
   }
 
-  // Change Lead Stage with History & Activity logging
+  // Change Lead Stage with Timeline & Activity logging
   Future<void> changeLeadStage({
     required String leadId,
     required String newStage,
@@ -129,72 +141,110 @@ class LeadRepository {
     await _client.from('Lead').update({
       'stage': newStage,
       'updatedAt': now,
-      if (newStage == 'LOST') 'lostReason': reason,
     }).eq('id', leadId);
 
     try {
-      await _client.from('LeadStageHistory').insert({
-        'id': _generateUuid(),
+      await _client.from('LeadNote').insert({
+        'id': 'lnote_${DateTime.now().millisecondsSinceEpoch}',
         'leadId': leadId,
-        'previousStage': previousStage ?? 'UNKNOWN',
-        'newStage': newStage,
-        'changedById': actorId,
-        'changeReason': reason ?? 'Stage updated in CRM Pipeline',
+        'content': 'Pipeline stage updated from ${previousStage ?? 'Previous'} to $newStage${reason != null ? ' ($reason)' : ''}',
+        'authorId': actorId ?? 'agent_vikram_01',
         'createdAt': now,
       });
+    } catch (_) {}
 
-      await _client.from('LeadActivity').insert({
-        'id': _generateUuid(),
+    try {
+      await _client.from('SalesNote').insert({
+        'id': 'snote_${DateTime.now().millisecondsSinceEpoch}',
         'leadId': leadId,
-        'activityType': 'STAGE_CHANGED',
-        'description': 'Stage changed from ${previousStage ?? 'Previous'} to $newStage',
-        'actorId': actorId,
+        'authorName': 'Vikram',
+        'content': 'Stage changed to $newStage: ${reason ?? 'Sales progression'}',
+        'tags': ['#StageChange', '#$newStage'],
         'createdAt': now,
       });
     } catch (_) {}
   }
 
-  // Get Activities for a Lead
+  // Get Activities / Timeline for a Lead
   Future<List<LeadActivityModel>> getLeadActivities(String leadId) async {
+    List<LeadActivityModel> activities = [];
+
+    // 1. Try LeadNote
     try {
-      final List<dynamic> response = await _client
-          .from('LeadActivity')
+      final List<dynamic> notes = await _client
+          .from('LeadNote')
           .select('*')
           .eq('leadId', leadId)
           .order('createdAt', ascending: false);
 
-      return response.map((json) => LeadActivityModel.fromJson(json)).toList();
-    } catch (_) {
-      return [];
-    }
+      for (var n in notes) {
+        activities.add(LeadActivityModel(
+          id: n['id'] ?? '',
+          leadId: leadId,
+          activityType: 'NOTE_ADDED',
+          description: n['content'] ?? 'Note recorded',
+          actorId: n['authorId'],
+          createdAt: DateTime.tryParse(n['createdAt'] ?? '') ?? DateTime.now(),
+        ));
+      }
+    } catch (_) {}
+
+    // 2. Try SalesNote
+    try {
+      final List<dynamic> salesNotes = await _client
+          .from('SalesNote')
+          .select('*')
+          .eq('leadId', leadId)
+          .order('createdAt', ascending: false);
+
+      for (var sn in salesNotes) {
+        if (!activities.any((a) => a.id == sn['id'])) {
+          activities.add(LeadActivityModel(
+            id: sn['id'] ?? '',
+            leadId: leadId,
+            activityType: 'SALES_NOTE',
+            description: '${sn['authorName'] ?? 'Agent'}: ${sn['content'] ?? ''}',
+            createdAt: DateTime.tryParse(sn['createdAt'] ?? '') ?? DateTime.now(),
+          ));
+        }
+      }
+    } catch (_) {}
+
+    activities.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return activities;
   }
 
   // Add Note to Lead
   Future<void> addNote({
     required String leadId,
     required String content,
+    String? schoolName,
     String? authorId,
   }) async {
     final now = DateTime.now().toIso8601String();
+    final noteId = 'lnote_${DateTime.now().millisecondsSinceEpoch}';
 
     try {
       await _client.from('LeadNote').insert({
-        'id': _generateUuid(),
+        'id': noteId,
         'leadId': leadId,
         'content': content,
-        'authorId': authorId,
+        'authorId': authorId ?? 'agent_vikram_01',
         'createdAt': now,
-        'updatedAt': now,
       });
-    } catch (_) {
+    } catch (_) {}
+
+    try {
       await _client.from('SalesNote').insert({
-        'id': _generateUuid(),
+        'id': 'snote_${DateTime.now().millisecondsSinceEpoch}',
         'leadId': leadId,
-        'authorName': 'Sales Agent',
+        'schoolName': schoolName,
+        'authorName': 'Vikram',
         'content': content,
+        'tags': ['#FieldNote'],
         'createdAt': now,
       });
-    }
+    } catch (_) {}
   }
 
   // Fetch Lead Notes
@@ -208,7 +258,16 @@ class LeadRepository {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (_) {
-      return [];
+      try {
+        final List<dynamic> response2 = await _client
+            .from('SalesNote')
+            .select('*')
+            .eq('leadId', leadId)
+            .order('createdAt', ascending: false);
+        return List<Map<String, dynamic>>.from(response2);
+      } catch (_) {
+        return [];
+      }
     }
   }
 }

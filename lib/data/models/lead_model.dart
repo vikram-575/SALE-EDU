@@ -63,7 +63,7 @@ class LeadModel {
     this.numberOfBranches = 1,
     this.currentSoftware,
     this.currentProblems,
-    this.source = 'Website',
+    this.source = 'FIELD_VISIT',
     this.campaign,
     this.ownerId,
     this.leadScore = 0,
@@ -175,7 +175,7 @@ class LeadModel {
 
   factory LeadModel.fromJson(Map<String, dynamic> json) {
     return LeadModel(
-      id: json['id'],
+      id: json['id'] ?? '',
       schoolName: json['schoolName'] ?? '',
       contactPerson: json['contactPerson'] ?? '',
       designation: json['designation'],
@@ -196,7 +196,7 @@ class LeadModel {
       numberOfBranches: json['numberOfBranches'] ?? 1,
       currentSoftware: json['currentSoftware'],
       currentProblems: json['currentProblems'],
-      source: json['source'] ?? 'Website',
+      source: json['source'] ?? 'FIELD_VISIT',
       campaign: json['campaign'],
       ownerId: json['ownerId'],
       leadScore: json['leadScore'] ?? 0,
@@ -204,8 +204,8 @@ class LeadModel {
       stage: json['stage'] ?? 'NEW',
       expectedValue: (json['expectedValue'] as num?)?.toDouble() ?? 0.0,
       probability: (json['probability'] as num?)?.toDouble() ?? 0.1,
-      nextFollowupAt: json['nextFollowupAt'] != null ? DateTime.parse(json['nextFollowupAt']) : null,
-      lastContactedAt: json['lastContactedAt'] != null ? DateTime.parse(json['lastContactedAt']) : null,
+      nextFollowupAt: json['nextFollowupAt'] != null ? DateTime.tryParse(json['nextFollowupAt']) : null,
+      lastContactedAt: json['lastContactedAt'] != null ? DateTime.tryParse(json['lastContactedAt']) : null,
       address: json['address'],
       googleMapsUrl: json['googleMapsUrl'],
       linkedinUrl: json['linkedinUrl'],
@@ -214,54 +214,30 @@ class LeadModel {
       procurementContact: json['procurementContact'],
       isArchived: json['isArchived'] ?? false,
       lostReason: json['lostReason'],
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) ?? DateTime.now() : DateTime.now(),
+      updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt']) ?? DateTime.now() : DateTime.now(),
     );
   }
 
-  Map<String, dynamic> toJson() {
+  // Sanitized database map for Supabase compatibility
+  Map<String, dynamic> toSupabaseMap() {
     return {
       'id': id,
       'schoolName': schoolName,
       'contactPerson': contactPerson,
-      'designation': designation,
       'phone': phone,
       'email': email,
-      'telegramUsername': telegramUsername,
-      'telegramChatId': telegramChatId,
-      'website': website,
       'city': city,
       'district': district,
       'pincode': pincode,
-      'state': state,
-      'country': country,
-      'schoolType': schoolType,
-      'board': board,
-      'approxStudentCount': approxStudentCount,
-      'approxTeacherCount': approxTeacherCount,
-      'numberOfBranches': numberOfBranches,
-      'currentSoftware': currentSoftware,
-      'currentProblems': currentProblems,
-      'source': source,
-      'campaign': campaign,
-      'ownerId': ownerId,
-      'leadScore': leadScore,
-      'priority': priority,
       'stage': stage,
+      'priority': priority,
       'expectedValue': expectedValue,
-      'probability': probability,
-      'nextFollowupAt': nextFollowupAt?.toIso8601String(),
-      'lastContactedAt': lastContactedAt?.toIso8601String(),
-      'address': address,
-      'googleMapsUrl': googleMapsUrl,
-      'linkedinUrl': linkedinUrl,
-      'decisionMaker': decisionMaker,
-      'influencer': influencer,
-      'procurementContact': procurementContact,
       'isArchived': isArchived,
-      'lostReason': lostReason,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
   }
+
+  Map<String, dynamic> toJson() => toSupabaseMap();
 }

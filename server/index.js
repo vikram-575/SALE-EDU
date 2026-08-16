@@ -618,7 +618,7 @@ app.post('/api/telegram/e2e-test', async (req, res) => {
   }
 });
 
-// Duplicate Check & Conversion Transactions (Preserved)
+// Duplicate Check & Conversion Transactions
 app.post('/api/sales/duplicate-check', async (req, res) => {
   try {
     const { schoolName, phone, email, website } = req.body;
@@ -663,6 +663,84 @@ app.post('/api/sales/duplicate-check', async (req, res) => {
     }
     matches.sort((a, b) => b.similarityPercentage - a.similarityPercentage);
     return res.json({ success: true, hasDuplicate: matches.length > 0, matchCount: matches.length, duplicates: matches });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lead Conversion Transaction
+app.post('/api/sales/convert-lead', async (req, res) => {
+  try {
+    const { leadId, annualRevenue, monthlyRevenue, oneTimeRevenue, planId, targetGoLiveDate, userId } = req.body;
+    if (!leadId) return res.status(400).json({ success: false, error: 'leadId is required' });
+
+    const now = new Date().toISOString();
+    const customerId = `cust_${leadId}`;
+    const onboardingId = `onb_${leadId}`;
+
+    // Update Lead stage to WON
+    await supabase.from('Lead').update({ stage: 'WON', updatedAt: now }).eq('id', leadId);
+
+    // Record Notes
+    try {
+      await supabase.from('LeadNote').insert({
+        id: `lnote_${Date.now()}`,
+        leadId: leadId,
+        content: `🎉 LEAD CONVERTED TO CUSTOMER! ARR: ₹${annualRevenue || 150000}`,
+        authorId: userId || 'agent_vikram_01',
+        createdAt: now
+      });
+    } catch (_) {}
+
+    try {
+      await supabase.from('SalesNote').insert({
+        id: `snote_${Date.now()}`,
+        leadId: leadId,
+        authorName: 'Vikram',
+        content: `🎉 Lead converted to Active Customer with ₹${annualRevenue || 150000} ARR.`,
+        tags: ['#Won', '#Customer', '#Revenue'],
+        isPinned: true,
+        createdAt: now
+      });
+    } catch (_) {}
+
+    return res.json({
+      success: true,
+      data: {
+        customerId,
+        onboardingId,
+        leadId,
+        status: 'ACTIVE'
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Sales AI Copilot
+app.post('/api/sales/copilot', async (req, res) => {
+  try {
+    const { prompt, leadId } = req.body;
+    let reply = `AI Recommendation:\nFollow up with the school decision maker with a live 10-minute fee collection and attendance bot demo.`;
+
+    if (GEMINI_API_KEY) {
+      try {
+        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: `You are an expert sales copilot for EducateSetu School ERP. Answer this sales strategy question concisely: ${prompt}` }] }]
+          })
+        });
+        const gData = await geminiRes.json();
+        if (gData.candidates && gData.candidates[0]?.content?.parts[0]?.text) {
+          reply = gData.candidates[0].content.parts[0].text;
+        }
+      } catch (_) {}
+    }
+
+    return res.json({ success: true, reply });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }

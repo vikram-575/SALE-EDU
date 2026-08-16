@@ -21,19 +21,11 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
   late TextEditingController _contactPersonController;
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
-  late TextEditingController _telegramController;
   late TextEditingController _cityController;
   late TextEditingController _districtController;
   late TextEditingController _pincodeController;
-  late TextEditingController _stateController;
-  late TextEditingController _studentCountController;
-  late TextEditingController _teacherCountController;
-  late TextEditingController _softwareController;
-  late TextEditingController _problemsController;
   late TextEditingController _expectedValueController;
-  late TextEditingController _decisionMakerController;
 
-  String _source = 'FIELD_VISIT';
   String _stage = 'NEW';
   String _priority = 'WARM';
   bool _isSaving = false;
@@ -45,20 +37,12 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
     _contactPersonController = TextEditingController(text: widget.lead?.contactPerson ?? '');
     _phoneController = TextEditingController(text: widget.lead?.phone ?? '');
     _emailController = TextEditingController(text: widget.lead?.email ?? '');
-    _telegramController = TextEditingController(text: widget.lead?.telegramUsername ?? '');
-    _cityController = TextEditingController(text: widget.lead?.city ?? '');
-    _districtController = TextEditingController(text: widget.lead?.district ?? '');
-    _pincodeController = TextEditingController(text: widget.lead?.pincode ?? '');
-    _stateController = TextEditingController(text: widget.lead?.state ?? 'Rajasthan');
-    _studentCountController = TextEditingController(text: widget.lead?.approxStudentCount.toString() ?? '500');
-    _teacherCountController = TextEditingController(text: widget.lead?.approxTeacherCount.toString() ?? '25');
-    _softwareController = TextEditingController(text: widget.lead?.currentSoftware ?? '');
-    _problemsController = TextEditingController(text: widget.lead?.currentProblems ?? '');
-    _expectedValueController = TextEditingController(text: widget.lead?.expectedValue.toString() ?? '150000');
-    _decisionMakerController = TextEditingController(text: widget.lead?.decisionMaker ?? '');
+    _cityController = TextEditingController(text: widget.lead?.city ?? 'Jaipur');
+    _districtController = TextEditingController(text: widget.lead?.district ?? 'Jaipur');
+    _pincodeController = TextEditingController(text: widget.lead?.pincode ?? '302001');
+    _expectedValueController = TextEditingController(text: widget.lead != null ? widget.lead!.expectedValue.toStringAsFixed(0) : '150000');
 
     if (widget.lead != null) {
-      _source = widget.lead!.source;
       _stage = widget.lead!.stage;
       _priority = widget.lead!.priority;
     }
@@ -69,40 +53,40 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
 
     setState(() => _isSaving = true);
 
+    final leadId = widget.lead?.id ?? '';
     final newLead = LeadModel(
-      id: widget.lead?.id ?? '',
+      id: leadId,
       schoolName: _schoolNameController.text.trim(),
       contactPerson: _contactPersonController.text.trim(),
-      phone: _phoneController.text.trim(),
-      email: _emailController.text.trim(),
-      telegramUsername: _telegramController.text.trim(),
-      city: _cityController.text.trim(),
-      district: _districtController.text.trim(),
-      pincode: _pincodeController.text.trim(),
-      state: _stateController.text.trim(),
-      approxStudentCount: int.tryParse(_studentCountController.text) ?? 0,
-      approxTeacherCount: int.tryParse(_teacherCountController.text) ?? 0,
-      currentSoftware: _softwareController.text.trim(),
-      currentProblems: _problemsController.text.trim(),
-      source: _source,
+      phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+      email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+      city: _cityController.text.trim().isEmpty ? 'Jaipur' : _cityController.text.trim(),
+      district: _districtController.text.trim().isEmpty ? 'Jaipur' : _districtController.text.trim(),
+      pincode: _pincodeController.text.trim().isEmpty ? '302001' : _pincodeController.text.trim(),
       stage: _stage,
       priority: _priority,
-      expectedValue: double.tryParse(_expectedValueController.text) ?? 0.0,
-      decisionMaker: _decisionMakerController.text.trim(),
+      expectedValue: double.tryParse(_expectedValueController.text) ?? 150000.0,
+      isArchived: widget.lead?.isArchived ?? false,
       createdAt: widget.lead?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
 
     try {
-      final success = await ref.read(leadProvider.notifier).createLead(newLead);
+      bool success;
+      if (widget.lead != null) {
+        success = await ref.read(leadProvider.notifier).updateLead(newLead);
+      } else {
+        success = await ref.read(leadProvider.notifier).createLead(newLead);
+      }
+
       if (mounted) {
         setState(() => _isSaving = false);
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('🎉 Lead saved successfully to Supabase!'),
+            SnackBar(
+              content: Text(widget.lead == null ? '🎉 Lead saved successfully to Supabase!' : 'Lead updated successfully!'),
               backgroundColor: AppColors.success,
-              duration: Duration(seconds: 2),
+              duration: const Duration(seconds: 2),
             ),
           );
           Navigator.pop(context);
@@ -133,7 +117,7 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(widget.lead == null ? 'Add New Lead' : 'Edit Lead', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        title: Text(widget.lead == null ? 'Add New School Lead' : 'Edit Lead', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -146,8 +130,8 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
               TextFormField(
                 controller: _schoolNameController,
                 style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(labelText: 'School Name *'),
-                validator: (v) => v == null || v.isEmpty ? 'School Name is required' : null,
+                decoration: const InputDecoration(labelText: 'School Name *', hintText: 'e.g. St. Xavier Public School'),
+                validator: (v) => v == null || v.trim().isEmpty ? 'School Name is required' : null,
               ),
               const SizedBox(height: 12),
               Row(
@@ -170,47 +154,11 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _pincodeController,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: const InputDecoration(labelText: 'Pincode'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _stateController,
-                      style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: const InputDecoration(labelText: 'State'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _studentCountController,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: const InputDecoration(labelText: 'Student Count'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _teacherCountController,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: const InputDecoration(labelText: 'Teacher Count'),
-                    ),
-                  ),
-                ],
+              TextFormField(
+                controller: _pincodeController,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(labelText: 'Pincode (e.g. 302001)'),
               ),
 
               const SizedBox(height: 24),
@@ -218,14 +166,8 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
               TextFormField(
                 controller: _contactPersonController,
                 style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(labelText: 'Contact Person *'),
-                validator: (v) => v == null || v.isEmpty ? 'Contact Person is required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _decisionMakerController,
-                style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(labelText: 'Decision Maker Name / Designation'),
+                decoration: const InputDecoration(labelText: 'Contact Person / Principal *', hintText: 'e.g. Dr. Ramesh Sharma'),
+                validator: (v) => v == null || v.trim().isEmpty ? 'Contact Person is required' : null,
               ),
               const SizedBox(height: 12),
               Row(
@@ -235,25 +177,19 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
                       style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: const InputDecoration(labelText: 'Phone Number'),
+                      decoration: const InputDecoration(labelText: 'Phone Number', hintText: '9876543210'),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: TextFormField(
-                      controller: _telegramController,
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
                       style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: const InputDecoration(labelText: 'Telegram Username'),
+                      decoration: const InputDecoration(labelText: 'Email Address'),
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(labelText: 'Email Address'),
               ),
 
               const SizedBox(height: 24),
@@ -292,14 +228,7 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
                 controller: _expectedValueController,
                 keyboardType: TextInputType.number,
                 style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(labelText: 'Expected Annual Revenue (₹)'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _problemsController,
-                maxLines: 2,
-                style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(labelText: 'Current ERP Pain Points / Problems'),
+                decoration: const InputDecoration(labelText: 'Expected Annual Value / Contract (₹)'),
               ),
 
               const SizedBox(height: 30),
@@ -314,7 +243,7 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
                   ),
                   child: _isSaving
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : Text('SAVE LEAD TO SUPABASE', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
+                      : Text(widget.lead == null ? 'SAVE LEAD TO SUPABASE' : 'UPDATE LEAD', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
                 ),
               )
             ],
