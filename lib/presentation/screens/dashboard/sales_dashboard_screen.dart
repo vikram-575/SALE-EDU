@@ -71,7 +71,7 @@ class SalesDashboardScreen extends ConsumerWidget {
                 context: context,
                 isScrollControlled: true,
                 backgroundColor: Colors.transparent,
-                builder: (_) => const AiCopilotSheet(),
+                builder: (_) => const AICopilotSheet(),
               );
             },
           ),
@@ -149,7 +149,7 @@ class SalesDashboardScreen extends ConsumerWidget {
                           context: context,
                           isScrollControlled: true,
                           backgroundColor: Colors.transparent,
-                          builder: (_) => const AiCopilotSheet(),
+                          builder: (_) => const AICopilotSheet(),
                         );
                       },
                     ),
