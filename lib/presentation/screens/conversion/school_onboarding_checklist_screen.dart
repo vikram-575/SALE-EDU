@@ -22,7 +22,9 @@ class SchoolOnboardingChecklistScreen extends StatefulWidget {
 
 class _SchoolOnboardingChecklistScreenState extends State<SchoolOnboardingChecklistScreen> {
   final _conversionRepo = ConversionRepository();
+  OnboardingRecordModel? _record;
   bool _isLoading = true;
+  bool _isHandoffTriggered = false;
 
   final Map<String, String> _itemLabels = {
     'schoolProfile': '1. School Profile & Master Data Setup',
