@@ -66,7 +66,7 @@ class LeadNotifier extends StateNotifier<LeadState> {
   }
 
   Future<void> loadLeads() async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: state.leads.isEmpty, error: null);
     try {
       final leads = await _repository.getLeads(
         stage: state.selectedStageFilter,
@@ -133,8 +133,13 @@ class LeadNotifier extends StateNotifier<LeadState> {
     loadLeads();
   }
 
+  // Fast optimistic update + Supabase sync
   Future<bool> createLead(LeadModel lead) async {
     try {
+      // Optimistic update
+      final updatedLeads = [lead, ...state.leads];
+      state = state.copyWith(leads: updatedLeads);
+
       await _repository.createLead(lead);
       await loadLeads();
       return true;
@@ -144,8 +149,17 @@ class LeadNotifier extends StateNotifier<LeadState> {
     }
   }
 
+  // Fast optimistic stage change
   Future<bool> changeStage(String leadId, String newStage, {String? previousStage, String? reason}) async {
     try {
+      final updatedLeads = state.leads.map((l) {
+        if (l.id == leadId) {
+          return l.copyWith(stage: newStage);
+        }
+        return l;
+      }).toList();
+      state = state.copyWith(leads: updatedLeads);
+
       await _repository.changeLeadStage(
         leadId: leadId,
         newStage: newStage,
