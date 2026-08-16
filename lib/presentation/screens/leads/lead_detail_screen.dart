@@ -14,7 +14,6 @@ import '../../../data/models/lead_task_model.dart';
 import '../../../data/repositories/task_repository.dart';
 import '../../providers/lead_provider.dart';
 import '../conversion/lead_conversion_modal.dart';
-import '../telegram/telegram_chat_screen.dart';
 import 'create_edit_lead_screen.dart';
 
 class LeadDetailScreen extends ConsumerStatefulWidget {
@@ -77,6 +76,82 @@ class _LeadDetailScreenState extends ConsumerState<LeadDetailScreen> with Single
     }
   }
 
+  void _showEditNoteDialog(Map<String, dynamic> note) {
+    final textController = TextEditingController(text: note['content'] ?? '');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Edit Lead Note', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: textController,
+              maxLines: 4,
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: const InputDecoration(labelText: 'Note Content'),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () async {
+                  final newText = textController.text.trim();
+                  if (newText.isEmpty) return;
+
+                  final repo = ref.read(leadRepositoryProvider);
+                  await repo.updateNote(note['id'], newText);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  _loadDetails();
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                child: const Text('UPDATE NOTE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _deleteNote(Map<String, dynamic> note) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Delete Note', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+        content: const Text('Are you sure you want to permanently delete this note?', style: TextStyle(color: AppColors.textSecondary)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted))),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
+            child: const Text('DELETE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final repo = ref.read(leadRepositoryProvider);
+      await repo.deleteNote(note['id']);
+      _loadDetails();
+    }
+  }
+
   void _changeStage(LeadModel lead, String newStage) async {
     await ref.read(leadProvider.notifier).changeStage(
       lead.id,
@@ -84,21 +159,6 @@ class _LeadDetailScreenState extends ConsumerState<LeadDetailScreen> with Single
       previousStage: lead.stage,
     );
     _loadDetails();
-  }
-
-  void _openTelegram(LeadModel lead) {
-    final targetChatId = lead.telegramChatId ?? '8812671433';
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TelegramChatScreen(
-          conversationId: 'conv_$targetChatId',
-          telegramChatId: targetChatId,
-          contactName: lead.schoolName,
-          leadId: lead.id,
-        ),
-      ),
-    );
   }
 
   void _launchPhone(String? phone) async {
@@ -293,14 +353,14 @@ class _LeadDetailScreenState extends ConsumerState<LeadDetailScreen> with Single
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _metricHeaderItem('Expected Annual ARR', CurrencyFormatter.formatINR(lead.expectedValue > 0 ? lead.expectedValue : 150000), AppColors.secondary),
+                    _metricHeaderItem('Expected ARR', CurrencyFormatter.formatINR(lead.expectedValue > 0 ? lead.expectedValue : 150000), AppColors.secondary),
                     _metricHeaderItem('Priority', lead.priority, AppColors.warning),
                     _metricHeaderItem('Stage', lead.stage, AppColors.primary),
                   ],
                 ),
                 const SizedBox(height: 12),
 
-                // Quick Action Bar
+                // Quick Action Bar (WhatsApp & Call)
                 Row(
                   children: [
                     if (lead.phone != null && lead.phone!.isNotEmpty) ...[
@@ -309,18 +369,15 @@ class _LeadDetailScreenState extends ConsumerState<LeadDetailScreen> with Single
                         tooltip: 'Call School',
                         onPressed: () => _launchPhone(lead.phone),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.chat, color: Color(0xFF25D366), size: 22),
-                        tooltip: 'WhatsApp',
-                        onPressed: () => _launchWhatsApp(lead.phone),
-                      ),
                     ],
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => _openTelegram(lead),
-                        icon: const Icon(Icons.telegram, size: 18, color: Color(0xFF0088CC)),
-                        label: const Text('Telegram Chat', style: TextStyle(fontSize: 12)),
-                        style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF0088CC), side: const BorderSide(color: Color(0xFF0088CC))),
+                        onPressed: () => _launchWhatsApp(lead.phone),
+                        icon: const Icon(Icons.chat, size: 18, color: Color(0xFF25D366)),
+                        label: const Text('Contact on WhatsApp', style: TextStyle(fontSize: 12, color: Color(0xFF25D366), fontWeight: FontWeight.bold)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF25D366)),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -375,9 +432,10 @@ class _LeadDetailScreenState extends ConsumerState<LeadDetailScreen> with Single
                             _detailSection('CONTACT INFORMATION', [
                               _detailRow('Contact Person', lead.contactPerson),
                               _detailRow('Phone Number', lead.phone ?? 'N/A'),
+                              _detailRow('WhatsApp Number', lead.phone ?? 'N/A'),
                               _detailRow('Email Address', lead.email ?? 'N/A'),
-                              _detailRow('Telegram Chat ID', lead.telegramChatId ?? '8812671433'),
                               _detailRow('City & District', '${lead.city ?? 'Jaipur'}, ${lead.district ?? 'Jaipur'}'),
+                              _detailRow('State & Country', '${lead.state ?? 'Rajasthan'}, India'),
                               _detailRow('Pincode', lead.pincode ?? '302001'),
                             ]),
                             const SizedBox(height: 16),
@@ -425,7 +483,7 @@ class _LeadDetailScreenState extends ConsumerState<LeadDetailScreen> with Single
                               },
                             ),
 
-                      // 3. Notes Tab
+                      // 3. Notes Tab (With Edit & Delete)
                       Column(
                         children: [
                           Padding(
@@ -461,15 +519,55 @@ class _LeadDetailScreenState extends ConsumerState<LeadDetailScreen> with Single
                                       return Card(
                                         child: Padding(
                                           padding: const EdgeInsets.all(12.0),
-                                          child: Column(
+                                          child: Row(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Text(n['content'] ?? '', style: const TextStyle(color: AppColors.textPrimary, fontSize: 13)),
-                                              const SizedBox(height: 6),
-                                              Text(
-                                                DateFormatter.formatDateTime(DateTime.tryParse(n['createdAt'] ?? '') ?? DateTime.now()),
-                                                style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(n['content'] ?? '', style: const TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+                                                    const SizedBox(height: 6),
+                                                    Text(
+                                                      DateFormatter.formatDateTime(DateTime.tryParse(n['createdAt'] ?? '') ?? DateTime.now()),
+                                                      style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
+                                              PopupMenuButton<String>(
+                                                icon: const Icon(Icons.more_vert, size: 18, color: AppColors.textMuted),
+                                                color: AppColors.surface,
+                                                onSelected: (val) {
+                                                  if (val == 'edit') {
+                                                    _showEditNoteDialog(n);
+                                                  } else if (val == 'delete') {
+                                                    _deleteNote(n);
+                                                  }
+                                                },
+                                                itemBuilder: (ctx) => [
+                                                  const PopupMenuItem(
+                                                    value: 'edit',
+                                                    child: Row(
+                                                      children: [
+                                                        Icon(Icons.edit, size: 16, color: AppColors.primary),
+                                                        SizedBox(width: 8),
+                                                        Text('Edit Note', style: TextStyle(color: AppColors.textPrimary)),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  const PopupMenuItem(
+                                                    value: 'delete',
+                                                    child: Row(
+                                                      children: [
+                                                        Icon(Icons.delete, size: 16, color: AppColors.danger),
+                                                        SizedBox(width: 8),
+                                                        Text('Delete Note', style: TextStyle(color: AppColors.danger)),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              )
                                             ],
                                           ),
                                         ),

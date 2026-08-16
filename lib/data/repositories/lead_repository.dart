@@ -15,6 +15,7 @@ class LeadRepository {
     String? stage,
     String? source,
     String? priority,
+    String? stateFilter,
     String? cityFilter,
     String? districtFilter,
     String? pincodeFilter,
@@ -44,6 +45,11 @@ class LeadRepository {
       final List<dynamic> response = await query;
       List<LeadModel> leads = response.map((json) => LeadModel.fromJson(json)).toList();
 
+      if (stateFilter != null && stateFilter.isNotEmpty && stateFilter != 'ALL') {
+        final sf = stateFilter.toLowerCase();
+        leads = leads.where((l) => (l.state ?? 'Rajasthan').toLowerCase().contains(sf)).toList();
+      }
+
       if (searchQuery != null && searchQuery.trim().isNotEmpty) {
         final q = searchQuery.toLowerCase().trim();
         leads = leads.where((l) =>
@@ -53,6 +59,7 @@ class LeadRepository {
           (l.email != null && l.email!.toLowerCase().contains(q)) ||
           (l.city != null && l.city!.toLowerCase().contains(q)) ||
           (l.district != null && l.district!.toLowerCase().contains(q)) ||
+          (l.state != null && l.state!.toLowerCase().contains(q)) ||
           (l.pincode != null && l.pincode!.contains(q)) ||
           l.id.contains(q)
         ).toList();
@@ -268,6 +275,32 @@ class LeadRepository {
       } catch (_) {
         return [];
       }
+    }
+  }
+
+  // Update Note
+  Future<bool> updateNote(String noteId, String newContent) async {
+    try {
+      await _client.from('LeadNote').update({'content': newContent}).eq('id', noteId);
+      try {
+        await _client.from('SalesNote').update({'content': newContent}).eq('id', noteId);
+      } catch (_) {}
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // Delete Note
+  Future<bool> deleteNote(String noteId) async {
+    try {
+      await _client.from('LeadNote').delete().eq('id', noteId);
+      try {
+        await _client.from('SalesNote').delete().eq('id', noteId);
+      } catch (_) {}
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 }

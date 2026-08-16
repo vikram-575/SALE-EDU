@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/loading_indicator.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../providers/lead_provider.dart';
+import '../profile/profile_screen.dart';
 import 'lead_detail_screen.dart';
 import 'create_edit_lead_screen.dart';
 import 'geo_filter_sheet.dart';
@@ -30,12 +32,28 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
     );
   }
 
+  void _launchWhatsApp(String? phone) async {
+    if (phone == null || phone.isEmpty) return;
+    final clean = phone.replaceAll(RegExp(r'\D'), '');
+    final uri = Uri.parse('https://wa.me/91$clean');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _openProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ProfileScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final leadState = ref.watch(leadProvider);
     final leadNotifier = ref.read(leadProvider.notifier);
 
-    final hasActiveGeoFilter = leadState.selectedCity != null || leadState.selectedDistrict != null || leadState.selectedPincode != null;
+    final hasActiveGeoFilter = leadState.selectedState != null || leadState.selectedCity != null || leadState.selectedDistrict != null || leadState.selectedPincode != null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -44,11 +62,17 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.location_on_outlined, color: hasActiveGeoFilter ? AppColors.secondary : AppColors.textPrimary),
-            tooltip: 'Filter City, District & Pincode',
+            tooltip: 'Filter State, District & Pincode',
             onPressed: _openGeoFilter,
           ),
           IconButton(
+            icon: const Icon(Icons.account_circle, color: AppColors.secondary),
+            tooltip: 'Agent Profile',
+            onPressed: _openProfile,
+          ),
+          IconButton(
             icon: const Icon(Icons.add),
+            tooltip: 'Add Lead',
             onPressed: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const CreateEditLeadScreen()));
             },
@@ -69,8 +93,9 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
                   Expanded(
                     child: Text(
                       'Filtered: ${[
-                        if (leadState.selectedCity != null) 'City: ${leadState.selectedCity}',
+                        if (leadState.selectedState != null) 'State: ${leadState.selectedState}',
                         if (leadState.selectedDistrict != null) 'Dist: ${leadState.selectedDistrict}',
+                        if (leadState.selectedCity != null) 'City: ${leadState.selectedCity}',
                         if (leadState.selectedPincode != null) 'Pin: ${leadState.selectedPincode}'
                       ].join(" • ")}',
                       style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
@@ -94,7 +119,7 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
                   onChanged: (value) => leadNotifier.setSearchQuery(value),
                   style: const TextStyle(color: AppColors.textPrimary),
                   decoration: InputDecoration(
-                    hintText: 'Search by School, Contact, Phone, City, District, Pincode...',
+                    hintText: 'Search State, District, Pincode, School, Contact...',
                     prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
@@ -133,7 +158,7 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
                 : leadState.leads.isEmpty
                     ? const EmptyStateWidget(
                         message: 'No leads found.',
-                        subtitle: 'No matching leads found for the selected city, district, or pincode filters.',
+                        subtitle: 'No matching leads found for the selected state, district, or pincode filters.',
                         icon: Icons.person_search_outlined,
                       )
                     : RefreshIndicator(
@@ -174,20 +199,45 @@ class _LeadListScreenState extends ConsumerState<LeadListScreen> {
                                       ),
                                       const SizedBox(height: 6),
                                       Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          const Icon(Icons.person_outline, size: 14, color: AppColors.textMuted),
-                                          const SizedBox(width: 4),
-                                          Text(lead.contactPerson, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.person_outline, size: 14, color: AppColors.textMuted),
+                                              const SizedBox(width: 4),
+                                              Text(lead.contactPerson, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                                            ],
+                                          ),
+                                          if (lead.phone != null && lead.phone!.isNotEmpty)
+                                            InkWell(
+                                              onTap: () => _launchWhatsApp(lead.phone),
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF25D366).withValues(alpha: 0.15),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  border: Border.all(color: const Color(0xFF25D366)),
+                                                ),
+                                                child: const Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(Icons.chat, size: 12, color: Color(0xFF25D366)),
+                                                    SizedBox(width: 4),
+                                                    Text('WhatsApp', style: TextStyle(color: Color(0xFF25D366), fontSize: 11, fontWeight: FontWeight.bold)),
+                                                  ],
+                                                ),
+                                              ),
+                                            )
                                         ],
                                       ),
-                                      const SizedBox(height: 4),
-                                      // Geo Location Pills (City, District, Pincode)
+                                      const SizedBox(height: 6),
+                                      // Geo Location Pills (State, District, City, Pincode)
                                       Row(
                                         children: [
                                           const Icon(Icons.place_outlined, size: 14, color: AppColors.secondary),
                                           const SizedBox(width: 4),
                                           Text(
-                                            '${lead.city ?? 'N/A'}${lead.district != null && lead.district!.isNotEmpty ? ', Dist: ${lead.district}' : ''}${lead.pincode != null && lead.pincode!.isNotEmpty ? ' (${lead.pincode})' : ''}',
+                                            '${lead.city ?? 'Jaipur'}${lead.district != null && lead.district!.isNotEmpty ? ', Dist: ${lead.district}' : ''}${lead.state != null && lead.state!.isNotEmpty ? ', ${lead.state}' : ''}${lead.pincode != null && lead.pincode!.isNotEmpty ? ' (${lead.pincode})' : ''}',
                                             style: const TextStyle(color: AppColors.textMuted, fontSize: 12, fontWeight: FontWeight.w500),
                                           ),
                                         ],

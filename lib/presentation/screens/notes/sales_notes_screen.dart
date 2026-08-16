@@ -195,6 +195,169 @@ class _SalesNotesScreenState extends ConsumerState<SalesNotesScreen> {
     );
   }
 
+  void _showEditNoteDialog(SalesNoteModel note) {
+    final noteTextController = TextEditingController(text: note.content);
+    List<String> selectedTags = List.from(note.tags);
+    bool isPinned = note.isPinned;
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogContext, setModalState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(dialogContext).viewInsets.bottom + 20,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.edit_note, color: AppColors.primary, size: 24),
+                      const SizedBox(width: 8),
+                      Text('Edit Sales Note', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                    ],
+                  ),
+                  if (note.schoolName != null) ...[
+                    const SizedBox(height: 4),
+                    Text('School: ${note.schoolName}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  ],
+                  const SizedBox(height: 12),
+
+                  TextFormField(
+                    controller: noteTextController,
+                    maxLines: 4,
+                    style: const TextStyle(color: AppColors.textPrimary),
+                    decoration: const InputDecoration(labelText: 'Note Content *'),
+                  ),
+                  const SizedBox(height: 12),
+
+                  Text('TAGS:', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    children: _tagsList.where((t) => t != 'ALL').map((tag) {
+                      final isSel = selectedTags.contains(tag);
+                      return FilterChip(
+                        label: Text(tag, style: TextStyle(fontSize: 11, color: isSel ? Colors.white : AppColors.textPrimary)),
+                        selected: isSel,
+                        selectedColor: AppColors.primary,
+                        backgroundColor: AppColors.background,
+                        onSelected: (sel) {
+                          setModalState(() {
+                            if (sel) {
+                              selectedTags.add(tag);
+                            } else {
+                              selectedTags.remove(tag);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+
+                  CheckboxListTile(
+                    value: isPinned,
+                    title: const Text('Pin to Top', style: TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+                    activeColor: AppColors.secondary,
+                    onChanged: (v) => setModalState(() => isPinned = v == true),
+                  ),
+                  const SizedBox(height: 16),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: isSubmitting
+                          ? null
+                          : () async {
+                              final text = noteTextController.text.trim();
+                              if (text.isEmpty) return;
+
+                              setModalState(() => isSubmitting = true);
+
+                              final res = await _noteRepo.updateNote(
+                                note.id,
+                                text,
+                                tags: selectedTags,
+                                isPinned: isPinned,
+                              );
+
+                              if (!dialogContext.mounted) return;
+                              Navigator.pop(dialogContext);
+
+                              if (res && mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Note updated successfully!'),
+                                    backgroundColor: AppColors.success,
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                                _loadNotes();
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                      child: isSubmitting
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : Text('UPDATE NOTE', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white)),
+                    ),
+                  )
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _deleteNote(SalesNoteModel note) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Delete Note', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+        content: const Text('Are you sure you want to permanently delete this sales note from Supabase?', style: TextStyle(color: AppColors.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
+            child: const Text('DELETE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _noteRepo.deleteNote(note.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Note deleted successfully!'),
+            backgroundColor: AppColors.success,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        _loadNotes();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final filteredNotes = _notes.where((n) {
@@ -301,12 +464,50 @@ class _SalesNotesScreenState extends ConsumerState<SalesNotesScreen> {
                                             ),
                                           ],
                                         ),
-                                        IconButton(
-                                          icon: Icon(note.isPinned ? Icons.push_pin : Icons.push_pin_outlined, size: 18, color: note.isPinned ? AppColors.secondary : AppColors.textMuted),
-                                          onPressed: () async {
-                                            await _noteRepo.togglePinNote(note.id, note.isPinned);
-                                            _loadNotes();
+                                        PopupMenuButton<String>(
+                                          icon: const Icon(Icons.more_vert, size: 20, color: AppColors.textMuted),
+                                          color: AppColors.surface,
+                                          onSelected: (val) {
+                                            if (val == 'edit') {
+                                              _showEditNoteDialog(note);
+                                            } else if (val == 'pin') {
+                                              _noteRepo.togglePinNote(note.id, note.isPinned).then((_) => _loadNotes());
+                                            } else if (val == 'delete') {
+                                              _deleteNote(note);
+                                            }
                                           },
+                                          itemBuilder: (ctx) => [
+                                            const PopupMenuItem(
+                                              value: 'edit',
+                                              child: Row(
+                                                children: [
+                                                  Icon(Icons.edit, size: 16, color: AppColors.primary),
+                                                  SizedBox(width: 8),
+                                                  Text('Edit Note', style: TextStyle(color: AppColors.textPrimary)),
+                                                ],
+                                              ),
+                                            ),
+                                            PopupMenuItem(
+                                              value: 'pin',
+                                              child: Row(
+                                                children: [
+                                                  Icon(note.isPinned ? Icons.push_pin_outlined : Icons.push_pin, size: 16, color: AppColors.secondary),
+                                                  SizedBox(width: 8),
+                                                  Text(note.isPinned ? 'Unpin' : 'Pin Note', style: const TextStyle(color: AppColors.textPrimary)),
+                                                ],
+                                              ),
+                                            ),
+                                            const PopupMenuItem(
+                                              value: 'delete',
+                                              child: Row(
+                                                children: [
+                                                  Icon(Icons.delete, size: 16, color: AppColors.danger),
+                                                  SizedBox(width: 8),
+                                                  Text('Delete Note', style: TextStyle(color: AppColors.danger)),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                         )
                                       ],
                                     ),

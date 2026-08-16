@@ -18,8 +18,7 @@ class SalesNoteRepository {
         return notes.where((n) => n.tags.contains(tagFilter)).toList();
       }
       return notes;
-    } catch (e) {
-      print('Error fetching sales notes: $e');
+    } catch (_) {
       return [];
     }
   }
@@ -44,8 +43,35 @@ class SalesNoteRepository {
         'createdAt': DateTime.now().toIso8601String(),
       });
       return true;
-    } catch (e) {
-      print('Error creating sales note: $e');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> updateNote(String noteId, String newContent, {List<String>? tags, bool? isPinned}) async {
+    try {
+      final Map<String, dynamic> updates = {'content': newContent};
+      if (tags != null) updates['tags'] = tags;
+      if (isPinned != null) updates['isPinned'] = isPinned;
+
+      await _supabase.from('SalesNote').update(updates).eq('id', noteId);
+      try {
+        await _supabase.from('LeadNote').update({'content': newContent}).eq('id', noteId);
+      } catch (_) {}
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteNote(String noteId) async {
+    try {
+      await _supabase.from('SalesNote').delete().eq('id', noteId);
+      try {
+        await _supabase.from('LeadNote').delete().eq('id', noteId);
+      } catch (_) {}
+      return true;
+    } catch (_) {
       return false;
     }
   }
@@ -56,8 +82,7 @@ class SalesNoteRepository {
         'isPinned': !currentPinState,
       }).eq('id', noteId);
       return true;
-    } catch (e) {
-      print('Error toggling pin state: $e');
+    } catch (_) {
       return false;
     }
   }

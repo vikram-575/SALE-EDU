@@ -10,7 +10,8 @@ import '../../providers/lead_provider.dart';
 import '../leads/lead_detail_screen.dart';
 import '../leads/create_edit_lead_screen.dart';
 import '../notes/sales_notes_screen.dart';
-import '../telegram/telegram_inbox_screen.dart';
+import '../tasks/task_list_screen.dart';
+import '../profile/profile_screen.dart';
 import '../copilot/ai_copilot_sheet.dart';
 
 class SalesDashboardScreen extends ConsumerWidget {
@@ -31,6 +32,13 @@ class SalesDashboardScreen extends ConsumerWidget {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+
+  void _openProfile(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ProfileScreen()),
+    );
   }
 
   @override
@@ -64,19 +72,13 @@ class SalesDashboardScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.psychology_outlined, color: AppColors.secondary),
-            tooltip: 'AI Sales Copilot',
-            onPressed: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (_) => const AICopilotSheet(),
-              );
-            },
+            icon: const Icon(Icons.account_circle, color: AppColors.secondary, size: 26),
+            tooltip: 'Agent Profile',
+            onPressed: () => _openProfile(context),
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
             onPressed: () {
               ref.read(dashboardProvider.notifier).loadDashboard();
               ref.read(leadProvider.notifier).loadLeads();
@@ -115,6 +117,19 @@ class SalesDashboardScreen extends ConsumerWidget {
                     const SizedBox(width: 8),
                     _actionPill(
                       context,
+                      label: '+ Add Task',
+                      icon: Icons.task_alt,
+                      color: AppColors.warning,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const TaskListScreen()),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    _actionPill(
+                      context,
                       label: '+ Add Note',
                       icon: Icons.note_add,
                       color: AppColors.secondary,
@@ -122,19 +137,6 @@ class SalesDashboardScreen extends ConsumerWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (_) => const SalesNotesScreen()),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    _actionPill(
-                      context,
-                      label: 'Telegram Inbox',
-                      icon: Icons.telegram,
-                      color: const Color(0xFF0088CC),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const TelegramInboxScreen()),
                         );
                       },
                     ),
@@ -304,7 +306,7 @@ class SalesDashboardScreen extends ConsumerWidget {
                           children: [
                             Text('${lead.contactPerson} • ${lead.stage}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                             if (lead.city != null && lead.city!.isNotEmpty)
-                              Text('📍 ${lead.city}${lead.pincode != null ? ' (${lead.pincode})' : ''}', style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                              Text('📍 ${lead.city}${lead.district != null && lead.district!.isNotEmpty ? ', Dist: ${lead.district}' : ''}${lead.pincode != null ? ' (${lead.pincode})' : ''}', style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
                           ],
                         ),
                         trailing: Row(
@@ -318,7 +320,7 @@ class SalesDashboardScreen extends ConsumerWidget {
                               ),
                               IconButton(
                                 icon: const Icon(Icons.chat, color: Color(0xFF25D366), size: 20),
-                                tooltip: 'WhatsApp',
+                                tooltip: 'WhatsApp Chat',
                                 onPressed: () => _launchWhatsApp(lead.phone),
                               ),
                             ],

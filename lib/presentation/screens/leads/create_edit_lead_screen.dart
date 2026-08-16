@@ -26,9 +26,23 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
   late TextEditingController _pincodeController;
   late TextEditingController _expectedValueController;
 
+  String _state = 'Rajasthan';
   String _stage = 'NEW';
-  String _priority = 'WARM';
+  String _priority = 'HOT';
   bool _isSaving = false;
+
+  final List<String> _indianStates = [
+    'Rajasthan',
+    'Uttar Pradesh',
+    'Delhi NCR',
+    'Haryana',
+    'Punjab',
+    'Madhya Pradesh',
+    'Gujarat',
+    'Maharashtra',
+    'Bihar',
+    'Uttarakhand',
+  ];
 
   @override
   void initState() {
@@ -45,6 +59,9 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
     if (widget.lead != null) {
       _stage = widget.lead!.stage;
       _priority = widget.lead!.priority;
+      if (widget.lead!.state != null && _indianStates.contains(widget.lead!.state)) {
+        _state = widget.lead!.state!;
+      }
     }
   }
 
@@ -62,6 +79,8 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
       email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
       city: _cityController.text.trim().isEmpty ? 'Jaipur' : _cityController.text.trim(),
       district: _districtController.text.trim().isEmpty ? 'Jaipur' : _districtController.text.trim(),
+      state: _state,
+      country: 'India',
       pincode: _pincodeController.text.trim().isEmpty ? '302001' : _pincodeController.text.trim(),
       stage: _stage,
       priority: _priority,
@@ -117,7 +136,7 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(widget.lead == null ? 'Add New School Lead' : 'Edit Lead', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        title: Text(widget.lead == null ? 'Add School Lead' : 'Edit Lead', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -126,7 +145,7 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _sectionTitle('SCHOOL INFORMATION'),
+              _sectionTitle('SCHOOL & TERRITORY DETAILS'),
               TextFormField(
                 controller: _schoolNameController,
                 style: const TextStyle(color: AppColors.textPrimary),
@@ -134,21 +153,30 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
                 validator: (v) => v == null || v.trim().isEmpty ? 'School Name is required' : null,
               ),
               const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _state,
+                dropdownColor: AppColors.surface,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(labelText: 'State *'),
+                items: _indianStates.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                onChanged: (v) => setState(() => _state = v!),
+              ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
                     child: TextFormField(
-                      controller: _cityController,
+                      controller: _districtController,
                       style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: const InputDecoration(labelText: 'City'),
+                      decoration: const InputDecoration(labelText: 'District (e.g. Jaipur, Kota)'),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: TextFormField(
-                      controller: _districtController,
+                      controller: _cityController,
                       style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: const InputDecoration(labelText: 'District'),
+                      decoration: const InputDecoration(labelText: 'City'),
                     ),
                   ),
                 ],
@@ -162,7 +190,7 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
               ),
 
               const SizedBox(height: 24),
-              _sectionTitle('CONTACT DETAILS'),
+              _sectionTitle('CONTACT PERSON & WHATSAPP NUMBER'),
               TextFormField(
                 controller: _contactPersonController,
                 style: const TextStyle(color: AppColors.textPrimary),
@@ -177,19 +205,26 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
                       style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: const InputDecoration(labelText: 'Phone Number', hintText: '9876543210'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: const InputDecoration(labelText: 'Email Address'),
+                      decoration: const InputDecoration(
+                        labelText: 'WhatsApp Contact Number *',
+                        hintText: '9876543210',
+                        prefixIcon: Icon(Icons.chat, color: Color(0xFF25D366), size: 20),
+                      ),
+                      validator: (v) => v == null || v.trim().isEmpty ? 'WhatsApp Phone is required' : null,
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(
+                  labelText: 'Email Address',
+                  hintText: 'principal@school.edu.in',
+                  prefixIcon: Icon(Icons.email_outlined, size: 20),
+                ),
               ),
 
               const SizedBox(height: 24),
@@ -228,7 +263,7 @@ class _CreateEditLeadScreenState extends ConsumerState<CreateEditLeadScreen> {
                 controller: _expectedValueController,
                 keyboardType: TextInputType.number,
                 style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(labelText: 'Expected Annual Value / Contract (₹)'),
+                decoration: const InputDecoration(labelText: 'Expected Annual ARR / Contract Value (₹)'),
               ),
 
               const SizedBox(height: 30),

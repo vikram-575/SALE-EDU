@@ -12,6 +12,7 @@ class LeadState {
   final String selectedStageFilter;
   final String selectedSourceFilter;
   final String selectedPriorityFilter;
+  final String? selectedState;
   final String? selectedCity;
   final String? selectedDistrict;
   final String? selectedPincode;
@@ -24,6 +25,7 @@ class LeadState {
     this.selectedStageFilter = 'ALL',
     this.selectedSourceFilter = 'ALL',
     this.selectedPriorityFilter = 'ALL',
+    this.selectedState,
     this.selectedCity,
     this.selectedDistrict,
     this.selectedPincode,
@@ -37,6 +39,7 @@ class LeadState {
     String? selectedStageFilter,
     String? selectedSourceFilter,
     String? selectedPriorityFilter,
+    String? selectedState,
     String? selectedCity,
     String? selectedDistrict,
     String? selectedPincode,
@@ -49,6 +52,7 @@ class LeadState {
       selectedStageFilter: selectedStageFilter ?? this.selectedStageFilter,
       selectedSourceFilter: selectedSourceFilter ?? this.selectedSourceFilter,
       selectedPriorityFilter: selectedPriorityFilter ?? this.selectedPriorityFilter,
+      selectedState: selectedState ?? this.selectedState,
       selectedCity: selectedCity ?? this.selectedCity,
       selectedDistrict: selectedDistrict ?? this.selectedDistrict,
       selectedPincode: selectedPincode ?? this.selectedPincode,
@@ -72,6 +76,7 @@ class LeadNotifier extends StateNotifier<LeadState> {
         stage: state.selectedStageFilter,
         source: state.selectedSourceFilter,
         priority: state.selectedPriorityFilter,
+        stateFilter: state.selectedState,
         cityFilter: state.selectedCity,
         districtFilter: state.selectedDistrict,
         pincodeFilter: state.selectedPincode,
@@ -93,13 +98,14 @@ class LeadNotifier extends StateNotifier<LeadState> {
     loadLeads();
   }
 
-  void setGeoFilters({String? city, String? district, String? pincode}) {
+  void setGeoFilters({String? stateFilter, String? city, String? district, String? pincode}) {
     state = LeadState(
       isLoading: true,
       leads: state.leads,
       selectedStageFilter: state.selectedStageFilter,
       selectedSourceFilter: state.selectedSourceFilter,
       selectedPriorityFilter: state.selectedPriorityFilter,
+      selectedState: stateFilter,
       selectedCity: city,
       selectedDistrict: district,
       selectedPincode: pincode,
@@ -115,6 +121,7 @@ class LeadNotifier extends StateNotifier<LeadState> {
       selectedStageFilter: state.selectedStageFilter,
       selectedSourceFilter: state.selectedSourceFilter,
       selectedPriorityFilter: state.selectedPriorityFilter,
+      selectedState: null,
       selectedCity: null,
       selectedDistrict: null,
       selectedPincode: null,

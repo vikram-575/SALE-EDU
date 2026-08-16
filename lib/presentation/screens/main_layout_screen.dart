@@ -4,12 +4,12 @@ import '../../core/constants/app_colors.dart';
 import 'dashboard/sales_dashboard_screen.dart';
 import 'leads/lead_list_screen.dart';
 import 'pipeline/pipeline_kanban_screen.dart';
-import 'telegram/telegram_command_center_screen.dart';
-import 'notes/sales_notes_screen.dart';
 import 'tasks/task_list_screen.dart';
+import 'notes/sales_notes_screen.dart';
 import 'copilot/ai_copilot_sheet.dart';
 import 'analytics/sales_analytics_screen.dart';
 import 'settings/system_health_screen.dart';
+import 'profile/profile_screen.dart';
 
 class MainLayoutScreen extends ConsumerStatefulWidget {
   const MainLayoutScreen({super.key});
@@ -25,7 +25,7 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
     const SalesDashboardScreen(),
     const LeadListScreen(),
     const PipelineKanbanScreen(),
-    const TelegramCommandCenterScreen(),
+    const TaskListScreen(),
     const SalesNotesScreen(),
   ];
 
@@ -35,6 +35,13 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const AICopilotSheet(),
+    );
+  }
+
+  void _openProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ProfileScreen()),
     );
   }
 
@@ -73,9 +80,9 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
               label: 'Pipeline',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.send_outlined),
-              activeIcon: Icon(Icons.send),
-              label: 'Telegram',
+              icon: Icon(Icons.task_alt_outlined),
+              activeIcon: Icon(Icons.task_alt),
+              label: 'Tasks',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.note_alt_outlined),
@@ -101,28 +108,40 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.hub, size: 40, color: AppColors.primary),
-                  SizedBox(height: 10),
-                  Text('EDUCATESETU SALES', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text('Revenue Operating System 2.0', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Icon(Icons.hub, size: 36, color: AppColors.primary),
+                      IconButton(
+                        icon: const Icon(Icons.account_circle_outlined, color: AppColors.secondary, size: 28),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _openProfile();
+                        },
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('EDUCATESETU SALES', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text('Agent: Vikram Tomar', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                 ],
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.send_outlined, color: AppColors.secondary),
-              title: const Text('Telegram Command Center', style: TextStyle(color: AppColors.textPrimary)),
+              leading: const Icon(Icons.account_circle, color: AppColors.secondary),
+              title: const Text('My Profile & Targets', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
               onTap: () {
                 Navigator.pop(context);
-                setState(() => _currentIndex = 3);
+                _openProfile();
               },
             ),
             ListTile(
-              leading: const Icon(Icons.note_alt_outlined, color: AppColors.primary),
-              title: const Text('Sales Field Notes Hub', style: TextStyle(color: AppColors.textPrimary)),
+              leading: const Icon(Icons.contacts_outlined, color: AppColors.primary),
+              title: const Text('Leads Directory (State & District)', style: TextStyle(color: AppColors.textPrimary)),
               onTap: () {
                 Navigator.pop(context);
-                setState(() => _currentIndex = 4);
+                setState(() => _currentIndex = 1);
               },
             ),
             ListTile(
@@ -130,7 +149,15 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
               title: const Text('Tasks & Follow-ups', style: TextStyle(color: AppColors.textPrimary)),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const TaskListScreen()));
+                setState(() => _currentIndex = 3);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.note_alt_outlined, color: AppColors.info),
+              title: const Text('Sales Field Notes Hub', style: TextStyle(color: AppColors.textPrimary)),
+              onTap: () {
+                Navigator.pop(context);
+                setState(() => _currentIndex = 4);
               },
             ),
             ListTile(
