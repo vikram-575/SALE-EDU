@@ -31,22 +31,56 @@ class LeadTaskModel {
     required this.createdAt,
   });
 
+  LeadTaskModel copyWith({
+    String? id,
+    String? leadId,
+    String? customerId,
+    String? title,
+    String? description,
+    String? taskType,
+    String? priority,
+    String? status,
+    DateTime? dueDate,
+    String? dueTime,
+    String? assignedToId,
+    String? createdById,
+    DateTime? completedAt,
+    DateTime? createdAt,
+  }) {
+    return LeadTaskModel(
+      id: id ?? this.id,
+      leadId: leadId ?? this.leadId,
+      customerId: customerId ?? this.customerId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      taskType: taskType ?? this.taskType,
+      priority: priority ?? this.priority,
+      status: status ?? this.status,
+      dueDate: dueDate ?? this.dueDate,
+      dueTime: dueTime ?? this.dueTime,
+      assignedToId: assignedToId ?? this.assignedToId,
+      createdById: createdById ?? this.createdById,
+      completedAt: completedAt ?? this.completedAt,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
   factory LeadTaskModel.fromJson(Map<String, dynamic> json) {
     return LeadTaskModel(
-      id: json['id'],
+      id: json['id'] ?? '',
       leadId: json['leadId'],
       customerId: json['customerId'],
       title: json['title'] ?? '',
       description: json['description'],
       taskType: json['taskType'] ?? 'Follow-up',
       priority: json['priority'] ?? 'MEDIUM',
-      status: json['status'] ?? 'TODO',
-      dueDate: DateTime.parse(json['dueDate'] ?? DateTime.now().toIso8601String()),
+      status: json['status'] ?? 'PENDING',
+      dueDate: json['dueDate'] != null ? DateTime.tryParse(json['dueDate']) ?? DateTime.now() : DateTime.now(),
       dueTime: json['dueTime'],
       assignedToId: json['assignedToId'],
       createdById: json['createdById'],
-      completedAt: json['completedAt'] != null ? DateTime.parse(json['completedAt']) : null,
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+      completedAt: json['completedAt'] != null ? DateTime.tryParse(json['completedAt']) : null,
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) ?? DateTime.now() : DateTime.now(),
     );
   }
 
