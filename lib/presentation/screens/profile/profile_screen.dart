@@ -2,13 +2,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../data/repositories/auth_repository.dart';
+import '../../providers/lead_provider.dart';
 import '../auth/login_screen.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
-  void _logout(BuildContext context, WidgetRef ref) async {
+  @override
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  final _authRepo = AuthRepository();
+  Map<String, dynamic>? _userProfile;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final profile = await _authRepo.getCurrentUserProfile();
+    if (mounted) {
+      setState(() {
+        _userProfile = profile;
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _logout() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -30,9 +57,8 @@ class ProfileScreen extends ConsumerWidget {
     );
 
     if (confirm == true) {
-      final authRepo = AuthRepository();
-      await authRepo.signOut();
-      if (context.mounted) {
+      await _authRepo.signOut();
+      if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const LoginScreen()),
           (route) => false,
@@ -42,111 +68,135 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final leadState = ref.watch(leadProvider);
+    final leads = leadState.leads;
+
+    // Real dynamic performance calculations
+    final totalLeads = leads.length;
+    final wonLeads = leads.where((l) => l.stage == 'WON').toList();
+    final wonCount = wonLeads.length;
+    final closedWonARR = wonLeads.fold(0.0, (sum, l) => sum + l.expectedValue);
+
+    final activeLeads = leads.where((l) => l.stage != 'WON' && l.stage != 'LOST').toList();
+    final activePipelineARR = activeLeads.fold(0.0, (sum, l) => sum + l.expectedValue);
+
+    final conversionRate = totalLeads > 0 ? ((wonCount / totalLeads) * 100).toStringAsFixed(1) : '0.0';
+
+    final firstName = _userProfile?['firstName'] ?? 'Vikram';
+    final lastName = _userProfile?['lastName'] ?? 'Tomar';
+    final email = _userProfile?['email'] ?? 'vikramtomar0505@gmail.com';
+    final role = _userProfile?['roleId'] ?? 'SUPER_ADMIN';
+    final agentId = _userProfile?['id'] ?? 'agent_vikram_01';
+    final initials = '${firstName.isNotEmpty ? firstName[0] : 'V'}${lastName.isNotEmpty ? lastName[0] : 'T'}'.toUpperCase();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text('Agent Profile', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            // Profile Card Header
-            Container(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: AppColors.primary,
-                    child: Text('VT', style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
-                  ),
-                  const SizedBox(height: 12),
-                  Text('Vikram Tomar', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                  const SizedBox(height: 4),
-                  Text('VIKRAMTOMAR0505@GMAIL.COM', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                  const SizedBox(height: 8),
+                  // Profile Card Header (Real User Details)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: AppColors.secondary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.secondary),
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
                     ),
-                    child: const Text('Senior Enterprise Sales Lead', style: TextStyle(color: AppColors.secondary, fontSize: 11, fontWeight: FontWeight.bold)),
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundColor: AppColors.primary,
+                          child: Text(initials, style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                        ),
+                        const SizedBox(height: 12),
+                        Text('$firstName $lastName', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                        const SizedBox(height: 4),
+                        Text(email, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppColors.secondary),
+                          ),
+                          child: Text(role.replaceAll('_', ' '), style: const TextStyle(color: AppColors.secondary, fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Real Performance & Sales Metrics
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('REAL SALES PERFORMANCE', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 0.8)),
+                        const SizedBox(height: 12),
+                        _infoRow('Total Assigned Leads', '$totalLeads Schools'),
+                        _infoRow('Closed Won Deals', '$wonCount Customer(s)'),
+                        _infoRow('Closed Won ARR', CurrencyFormatter.formatINR(closedWonARR)),
+                        _infoRow('Active Pipeline Value', CurrencyFormatter.formatINR(activePipelineARR)),
+                        _infoRow('Win Conversion Rate', '$conversionRate%'),
+                        _infoRow('Sales Agent ID', agentId),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Cloud & System Health
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('SYSTEM & CLOUD STATUS', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 0.8)),
+                        const SizedBox(height: 12),
+                        _infoRow('Supabase Database', 'Live (gosonxfusaymwvkcqjgw)'),
+                        _infoRow('Backend API Proxy', 'Live (sale-edu.onrender.com)'),
+                        _infoRow('App Version', 'v2.4.0 (Enterprise Live)'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Sign Out Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: _logout,
+                      icon: const Icon(Icons.logout, color: Colors.white),
+                      label: Text('SIGN OUT', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.danger,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-
-            // Performance & Territory Metrics
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('TERRITORY & PERFORMANCE', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 0.8)),
-                  const SizedBox(height: 12),
-                  _infoRow('Assigned Territory', 'Rajasthan & North India'),
-                  _infoRow('Target Annual ARR', '₹50,00,000'),
-                  _infoRow('Closed ARR This Year', '₹18,50,000'),
-                  _infoRow('Active Pipeline Value', '₹42,00,000'),
-                  _infoRow('Sales Team ID', 'AGENT_VIKRAM_01'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Cloud & System Health
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('SYSTEM & CLOUD STATUS', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 0.8)),
-                  const SizedBox(height: 12),
-                  _infoRow('Supabase Database', 'Connected (gosonxfusaymwvkcqjgw)'),
-                  _infoRow('Express Backend API', 'Active (sale-edu.onrender.com)'),
-                  _infoRow('App Version', 'v2.4.0 (Enterprise Release)'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Sign Out Button
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: () => _logout(context, ref),
-                icon: const Icon(Icons.logout, color: Colors.white),
-                label: Text('SIGN OUT', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.danger,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

@@ -12,73 +12,62 @@ class AuthRepository {
     final cleanEmail = email.trim().toLowerCase();
     final cleanPassword = password.trim();
 
+    if (cleanEmail.isEmpty || cleanPassword.isEmpty) {
+      throw const AuthException('Email and password cannot be empty.');
+    }
+
     // 1. Try standard Supabase GoTrue Authentication
     try {
       final response = await _client.auth.signInWithPassword(
         email: cleanEmail,
         password: cleanPassword,
       );
-      if (response.session != null) {
-        await _saveLocalSession({
-          'id': response.user?.id ?? 'agent_vikram_01',
-          'email': cleanEmail,
-          'firstName': 'Vikram',
-          'lastName': 'Tomar',
-          'roleId': 'SUPER_ADMIN',
-        });
+      if (response.session != null && response.user != null) {
+        // Fetch matching User profile from database
+        final dbUser = await _client
+            .from('User')
+            .select('id, email, firstName, lastName, roleId')
+            .ilike('email', cleanEmail)
+            .maybeSingle();
+
+        final profile = {
+          'id': dbUser?['id'] ?? response.user!.id,
+          'email': response.user!.email ?? cleanEmail,
+          'firstName': dbUser?['firstName'] ?? response.user!.userMetadata?['firstName'] ?? 'Sales',
+          'lastName': dbUser?['lastName'] ?? response.user!.userMetadata?['lastName'] ?? 'Agent',
+          'roleId': dbUser?['roleId'] ?? 'SALES_EXECUTIVE',
+        };
+
+        await _saveLocalSession(profile);
         return response;
       }
-    } catch (e) {
-      // 2. If user is not yet registered in Supabase GoTrue Auth, auto-register via signUp
-      try {
-        final signUpRes = await _client.auth.signUp(
-          email: cleanEmail,
-          password: cleanPassword,
-        );
-        if (signUpRes.session != null) {
-          await _saveLocalSession({
-            'id': signUpRes.user?.id ?? 'agent_vikram_01',
-            'email': cleanEmail,
-            'firstName': 'Vikram',
-            'lastName': 'Tomar',
-            'roleId': 'SUPER_ADMIN',
-          });
-          return signUpRes;
-        }
-      } catch (_) {}
-    }
+    } catch (_) {}
 
-    // 3. Fail-safe Database User Verification (Queries public "User" table directly)
+    // 2. Real Database User Authentication (Supabase "User" table)
     try {
       final userRecord = await _client
           .from('User')
-          .select('*')
+          .select('id, email, firstName, lastName, roleId, passwordHash')
           .ilike('email', cleanEmail)
           .maybeSingle();
 
       if (userRecord != null) {
-        final storedHash = userRecord['passwordHash'];
-        if (storedHash == cleanPassword || cleanPassword == '9090808090') {
-          await _saveLocalSession(userRecord);
-          return userRecord;
+        final storedHash = userRecord['passwordHash']?.toString().trim();
+        if (storedHash != null && storedHash == cleanPassword) {
+          final profile = {
+            'id': userRecord['id'],
+            'email': userRecord['email'],
+            'firstName': userRecord['firstName'] ?? 'Sales',
+            'lastName': userRecord['lastName'] ?? 'Agent',
+            'roleId': userRecord['roleId'] ?? 'SALES_EXECUTIVE',
+          };
+          await _saveLocalSession(profile);
+          return profile;
         }
       }
     } catch (_) {}
 
-    // 4. Default fallback for Sales Agent vikramtomar0505@gmail.com
-    if (cleanEmail == 'vikramtomar0505@gmail.com' && (cleanPassword == '9090808090' || cleanPassword.isNotEmpty)) {
-      final sessionData = {
-        'id': 'agent_vikram_01',
-        'email': 'vikramtomar0505@gmail.com',
-        'firstName': 'Vikram',
-        'lastName': 'Tomar',
-        'roleId': 'SUPER_ADMIN'
-      };
-      await _saveLocalSession(sessionData);
-      return {'user': sessionData};
-    }
-
-    throw const AuthException('Invalid login credentials. Please check your email and password.');
+    throw const AuthException('Invalid login credentials. Please check your registered email and password.');
   }
 
   Future<void> _saveLocalSession(Map<String, dynamic> userProfile) async {
@@ -99,7 +88,7 @@ class AuthRepository {
   }
 
   Future<Map<String, dynamic>?> getCurrentUserProfile() async {
-    // 1. Try local cache first for 0ms boot time
+    // 1. Check local session cache for fast instant boot
     try {
       final prefs = await SharedPreferences.getInstance();
       final cachedStr = prefs.getString('cached_user_profile');
@@ -108,13 +97,14 @@ class AuthRepository {
       }
     } catch (_) {}
 
+    // 2. Fetch live from database "User" table
     final user = currentUser;
-    if (user != null) {
+    if (user != null && user.email != null) {
       try {
         final response = await _client
             .from('User')
             .select('id, email, firstName, lastName, roleId')
-            .eq('id', user.id)
+            .ilike('email', user.email!)
             .maybeSingle();
         if (response != null) {
           await _saveLocalSession(response);
@@ -123,26 +113,6 @@ class AuthRepository {
       } catch (_) {}
     }
 
-    try {
-      final response = await _client
-          .from('User')
-          .select('id, email, firstName, lastName, roleId')
-          .ilike('email', 'vikramtomar0505@gmail.com')
-          .maybeSingle();
-      if (response != null) {
-        await _saveLocalSession(response);
-        return response;
-      }
-    } catch (_) {}
-
-    final defaultProfile = {
-      'id': user?.id ?? 'agent_vikram_01',
-      'email': user?.email ?? 'vikramtomar0505@gmail.com',
-      'firstName': 'Vikram',
-      'lastName': 'Tomar',
-      'roleId': 'SUPER_ADMIN'
-    };
-    await _saveLocalSession(defaultProfile);
-    return defaultProfile;
+    return null;
   }
 }

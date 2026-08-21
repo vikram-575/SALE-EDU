@@ -65,7 +65,7 @@ class SalesDashboardScreen extends ConsumerWidget {
               children: [
                 Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)),
                 const SizedBox(width: 6),
-                const Text('ONLINE • SUPABASE & BACKEND', style: TextStyle(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+                const Text('LIVE DATABASE • SUPABASE', style: TextStyle(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
               ],
             )
           ],
@@ -78,7 +78,7 @@ class SalesDashboardScreen extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            tooltip: 'Refresh Data',
             onPressed: () {
               ref.read(dashboardProvider.notifier).loadDashboard();
               ref.read(leadProvider.notifier).loadLeads();
@@ -160,7 +160,7 @@ class SalesDashboardScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
 
-              // Hero Revenue Banner
+              // Hero Revenue Banner (100% Real Live Calculation)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -178,19 +178,19 @@ class SalesDashboardScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('REVENUE THIS MONTH', style: GoogleFonts.inter(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 1)),
+                    Text('CLOSED REVENUE THIS MONTH', style: GoogleFonts.inter(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 1)),
                     const SizedBox(height: 6),
                     Text(
-                      CurrencyFormatter.formatINR(metrics.revenueThisMonth > 0 ? metrics.revenueThisMonth : 150000),
+                      CurrencyFormatter.formatINR(metrics.revenueThisMonth),
                       style: GoogleFonts.outfit(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _bannerMetric('Pipeline Value', CurrencyFormatter.formatINR(metrics.pipelineValue > 0 ? metrics.pipelineValue : 750000)),
-                        _bannerMetric('MRR', CurrencyFormatter.formatINR(metrics.mrr > 0 ? metrics.mrr : 62500)),
-                        _bannerMetric('Active Leads', '${leadState.leads.length} Schools'),
+                        _bannerMetric('Active Pipeline Value', CurrencyFormatter.formatINR(metrics.pipelineValue)),
+                        _bannerMetric('MRR (Monthly)', CurrencyFormatter.formatINR(metrics.mrr)),
+                        _bannerMetric('Live Leads', '${leadState.leads.length} Schools'),
                       ],
                     )
                   ],
@@ -198,7 +198,7 @@ class SalesDashboardScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 20),
 
-              // Actionable Priority Alert Strip
+              // Overdue Follow-ups Alert Strip (Real-time)
               if (metrics.overdueFollowups > 0)
                 Container(
                   margin: const EdgeInsets.only(bottom: 16),
@@ -214,7 +214,7 @@ class SalesDashboardScreen extends ConsumerWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          '${metrics.overdueFollowups} Overdue Follow-up(s) need immediate contact today!',
+                          '${metrics.overdueFollowups} Overdue Follow-up(s) require contact today!',
                           style: GoogleFonts.inter(color: AppColors.danger, fontWeight: FontWeight.w700, fontSize: 13),
                         ),
                       ),
@@ -222,8 +222,8 @@ class SalesDashboardScreen extends ConsumerWidget {
                   ),
                 ),
 
-              // KPI Metrics Grid
-              Text('FUNNEL METRICS', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 0.8)),
+              // Funnel Metrics Grid (100% Real Live DB Data)
+              Text('LIVE FUNNEL METRICS', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 0.8)),
               const SizedBox(height: 10),
               GridView.count(
                 crossAxisCount: 2,
@@ -233,12 +233,12 @@ class SalesDashboardScreen extends ConsumerWidget {
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
                 children: [
-                  _kpiCard("Today's Leads", '${metrics.todaysLeads > 0 ? metrics.todaysLeads : leadState.leads.length}', Icons.person_add_outlined, AppColors.primary),
-                  _kpiCard('Qualified Leads', '${metrics.qualifiedLeads > 0 ? metrics.qualifiedLeads : 2}', Icons.verified_outlined, AppColors.secondary),
-                  _kpiCard('Demos Today', '${metrics.demosToday > 0 ? metrics.demosToday : 1}', Icons.video_call_outlined, AppColors.warning),
-                  _kpiCard('Active Trials', '${metrics.activeTrials > 0 ? metrics.activeTrials : 1}', Icons.rocket_launch_outlined, AppColors.info),
-                  _kpiCard('Follow-ups Due', '${metrics.followupsDueToday > 0 ? metrics.followupsDueToday : 3}', Icons.alarm_outlined, AppColors.accent),
-                  _kpiCard('Conversions', '${metrics.conversions > 0 ? metrics.conversions : 1}', Icons.workspace_premium_outlined, AppColors.success),
+                  _kpiCard("Today's New Leads", '${metrics.todaysLeads}', Icons.person_add_outlined, AppColors.primary),
+                  _kpiCard('Qualified Leads', '${metrics.qualifiedLeads}', Icons.verified_outlined, AppColors.secondary),
+                  _kpiCard('Demos Today', '${metrics.demosToday}', Icons.video_call_outlined, AppColors.warning),
+                  _kpiCard('Active Trials', '${metrics.activeTrials}', Icons.rocket_launch_outlined, AppColors.info),
+                  _kpiCard('Follow-ups Due', '${metrics.followupsDueToday}', Icons.alarm_outlined, AppColors.accent),
+                  _kpiCard('Closed Won Deals', '${metrics.conversions}', Icons.workspace_premium_outlined, AppColors.success),
                 ],
               ),
               const SizedBox(height: 24),
@@ -268,7 +268,7 @@ class SalesDashboardScreen extends ConsumerWidget {
                         const Icon(Icons.school_outlined, size: 36, color: AppColors.textMuted),
                         const SizedBox(height: 8),
                         Text(
-                          'No leads found yet.',
+                          'No leads found in database.',
                           style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 14),
                         ),
                         const SizedBox(height: 12),
@@ -280,7 +280,7 @@ class SalesDashboardScreen extends ConsumerWidget {
                             );
                           },
                           icon: const Icon(Icons.add, size: 16),
-                          label: const Text('Add Your First School Lead'),
+                          label: const Text('Add School Lead'),
                           style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
                         )
                       ],
